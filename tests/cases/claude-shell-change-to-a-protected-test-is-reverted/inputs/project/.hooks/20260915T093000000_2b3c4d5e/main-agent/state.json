@@ -1,0 +1,17 @@
+{
+  "20260915T093000000": {
+    "RevertWrites": {
+      "state": {
+        "unresolved": []
+      },
+      "inputs": {
+        "hook": "session-start"
+      },
+      "outputs": {
+        "verdict": "allow",
+        "reasons": [],
+        "context": []
+      }
+    }
+  }
+}

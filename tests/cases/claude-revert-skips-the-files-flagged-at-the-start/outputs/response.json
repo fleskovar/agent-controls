@@ -1,0 +1,10 @@
+{
+  "exit_code": 0,
+  "stdout": {
+    "hookSpecificOutput": {
+      "hookEventName": "PostToolUse",
+      "additionalContext": "The changes made to the files tests/DiscountTests.cs were reverted, because these are protected files that cannot be changed."
+    }
+  },
+  "stderr": ""
+}

@@ -1,0 +1,7 @@
+{
+  "exit_code": 0,
+  "stdout": {
+    "additionalContext": "The protected files tests/PricingTests.cs have uncommitted changes. Protected files cannot be changed. Stop and ask the user to commit or discard these changes before you continue."
+  },
+  "stderr": ""
+}

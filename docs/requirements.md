@@ -177,6 +177,16 @@ that code:
   on `user-prompt`.
 - **R43.** `ToolCallBudget(max_calls)` blocks tool calls after a maximum number
   of calls per agent.
+- **R44.** `RevertWrites(patterns)` runs on `post-tool`. It uses git to find
+  changes to matching paths, reverts them, and tells the agent that the files
+  are protected. On the start hooks, it tells the agent to ask the user about
+  matching paths that already have uncommitted changes, and it does not revert
+  those paths.
+- **R45.** `RunCommand(command)` runs a command on any hook that has a context
+  channel, and gives the failure output to the agent as context.
+- **R46.** Each command process writes the hook event as JSON to the standard
+  input of its command. The exit code and the output are the answer of the
+  command.
 
 ## 4. Refinements to task.md
 
@@ -196,8 +206,9 @@ that code:
 
 ## 5. Non-functional requirements
 
-- **N1.** The runtime has no third-party dependencies. It uses the Python 3.11+
-  standard library only.
+- **N1.** The runtime has one third-party dependency, GitPython. Only
+  `RevertWrites` imports it. All other code uses the Python 3.11+ standard
+  library only.
 - **N2.** The framework works on Windows, Linux and macOS.
 - **N3.** A runner file that contains only path guards completes a `pre-tool`
   call in less than 300 ms on a developer machine.

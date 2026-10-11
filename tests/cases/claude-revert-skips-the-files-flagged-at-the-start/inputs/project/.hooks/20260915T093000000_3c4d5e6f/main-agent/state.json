@@ -1,0 +1,22 @@
+{
+  "20260915T093000000": {
+    "RevertWrites": {
+      "state": {
+        "unresolved": [
+          "tests/PricingTests.cs",
+          "tests/TaxTests.cs"
+        ]
+      },
+      "inputs": {
+        "hook": "session-start"
+      },
+      "outputs": {
+        "verdict": "allow",
+        "reasons": [],
+        "context": [
+          "The protected files tests/PricingTests.cs, tests/TaxTests.cs have uncommitted changes. Protected files cannot be changed. Stop and ask the user to commit or discard these changes before you continue."
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "RevertWrites": {
+    "state": {
+      "unresolved": [
+        "tests/PricingTests.cs"
+      ]
+    },
+    "outputs": {
+      "verdict": "allow",
+      "reasons": [],
+      "context": [
+        "The protected files tests/PricingTests.cs have uncommitted changes. Protected files cannot be changed. Stop and ask the user to commit or discard these changes before you continue."
+      ]
+    }
+  }
+}

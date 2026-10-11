@@ -16,12 +16,14 @@ composition, not new code.
 | Request | Use |
 | --- | --- |
 | "Never let the agent change the tests" | `BlockWrites(["tests/**"])` |
+| "Undo each change to the tests, also from a shell command" | `RevertWrites(["tests/**"])` |
 | "Never let the agent read the secrets" | `BlockReads([".env", "secrets/**"])` |
 | "No force pushes, no rm -rf" | `BlockShellCommands([r"git\s+push\s+.*--force", r"\brm\s+-rf\b"])` |
 | "Tests must pass before it stops" | `RequireTests()` |
 | "The linter must pass before it stops" | `RequireCommand("ruff check .")` |
 | "Do not let it retry for ever" | `LoopGuard(RequireTests(), max_blocks=3)` |
 | "Lint each file it edits" | `CheckAfterEdit("ruff check {paths}", patterns=["*.py"])` |
+| "Show it the failed tests at the start" | `RunCommand("dotnet test", on=[Hook.SESSION_START])` |
 | "Tell it the project rules at the start" | `AddContext("...")` |
 | "Cap the number of tool calls" | `ToolCallBudget(200)` |
 

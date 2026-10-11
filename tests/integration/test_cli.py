@@ -3,6 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import git
 import pytest
 
 RUNNER = """import agent_actions as aa
@@ -126,3 +127,92 @@ def test_skills_are_copied_into_the_project(project: Path) -> None:
 
     assert completed.returncode == 0, completed.stderr
     assert (project / "agent-skills" / "agent-actions-processes" / "SKILL.md").is_file()
+
+
+REVERT_RUNNER = """import agent_actions as aa
+from agent_actions.processes import RevertWrites
+
+context = aa.get_current_context()
+context.add(RevertWrites(["tests/**"]))
+aa.run(context)
+"""
+
+COMMAND_RUNNER = """import sys
+
+import agent_actions as aa
+from agent_actions.processes import RunCommand
+
+context = aa.get_current_context()
+context.add(RunCommand([sys.executable, "check.py"]))
+aa.run(context)
+"""
+
+CHECK_SCRIPT = """import json
+import sys
+
+event = json.load(sys.stdin)
+print(f"checked on {event['hook']} for {event['harness']}")
+raise SystemExit(1)
+"""
+
+
+def context_of(completed: subprocess.CompletedProcess[str]) -> str:
+    assert completed.returncode == 0, completed.stderr
+    return str(json.loads(completed.stdout)["hookSpecificOutput"]["additionalContext"])
+
+
+def test_revert_writes_keeps_its_record_between_two_hook_calls(tmp_path: Path) -> None:
+    (tmp_path / "tests").mkdir()
+    for name in ("tests/test_a.py", "tests/test_b.py", "checks.py", ".gitignore"):
+        (tmp_path / name).write_text(
+            {"checks.py": REVERT_RUNNER, ".gitignore": ".hooks/\n"}.get(name, "original\n"),
+            encoding="utf-8",
+        )
+    with git.Repo.init(tmp_path) as repo:
+        repo.git.add("--all")
+        repo.index.commit("first")
+    session = {"session_id": "sess-0002-abcd", "cwd": tmp_path.as_posix()}
+    (tmp_path / "tests" / "test_a.py").write_text("work of the user\n", encoding="utf-8")
+
+    at_start = run_cli(
+        ["run", "checks.py", "--harness", "claude", "--hook", "session-start"],
+        tmp_path,
+        json.dumps(session | {"hook_event_name": "SessionStart"}),
+    )
+    (tmp_path / "tests" / "test_b.py").write_text("cheat\n", encoding="utf-8")
+    after_tool = run_cli(
+        ["run", "checks.py", "--harness", "claude", "--hook", "post-tool"],
+        tmp_path,
+        json.dumps(
+            session
+            | {
+                "hook_event_name": "PostToolUse",
+                "tool_name": "Bash",
+                "tool_input": {"command": "echo cheat > tests/test_b.py"},
+            }
+        ),
+    )
+
+    assert "tests/test_a.py have uncommitted changes" in context_of(at_start)
+    assert "files tests/test_b.py were reverted" in context_of(after_tool)
+    assert (tmp_path / "tests" / "test_a.py").read_text(encoding="utf-8") == "work of the user\n"
+    assert (tmp_path / "tests" / "test_b.py").read_text(encoding="utf-8") == "original\n"
+
+
+def test_run_command_pipes_the_event_to_a_real_command(tmp_path: Path) -> None:
+    (tmp_path / "checks.py").write_text(COMMAND_RUNNER, encoding="utf-8")
+    (tmp_path / "check.py").write_text(CHECK_SCRIPT, encoding="utf-8")
+
+    completed = run_cli(
+        ["run", "checks.py", "--harness", "claude", "--hook", "session-start"],
+        tmp_path,
+        json.dumps(
+            {
+                "session_id": "sess-0003-abcd",
+                "cwd": tmp_path.as_posix(),
+                "hook_event_name": "SessionStart",
+            }
+        ),
+    )
+
+    assert context_of(completed).endswith("checked on session-start for claude\n")

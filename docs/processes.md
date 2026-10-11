@@ -20,6 +20,8 @@ stays closed when a harness reports a path style the framework cannot map.
 | [`RequireTests`](#requiretests) | `stop`, `subagent-stop` | the stop while pytest fails |
 | [`LoopGuard`](#loopguard) | the hooks of the process it wraps | nothing; it releases a blocked stop |
 | [`CheckAfterEdit`](#checkafteredit) | `post-tool` | nothing; it adds the failure output as context |
+| [`RunCommand`](#runcommand) | any hook with a context channel | nothing; it adds the failure output as context |
+| [`RevertWrites`](#revertwrites) | `session-start`, `subagent-start`, `post-tool` | nothing; it reverts changes to protected paths with git |
 | [`AddContext`](#addcontext) | any hook with a context channel | nothing |
 | [`ToolCallBudget`](#toolcallbudget) | `pre-tool` | tool calls after a maximum |
 
@@ -159,6 +161,73 @@ context.add(CheckAfterEdit("ruff check {paths}", patterns=["*.py"]))
 - `{paths}` becomes the edited paths. In a string command they are quoted.
 - With `patterns`, the command runs only when an edited path matches.
 
+## RunCommand
+
+```python
+RunCommand(command, *, on=(Hook.SESSION_START,), reason=..., timeout=240.0,
+           max_output_chars=3000, name="", command_runner=run_subprocess)
+```
+
+Runs a command on the hooks that you choose. Exit code 0 adds nothing. Anything
+else gives the command output to the agent as context. It never blocks.
+
+```python
+context.add(RunCommand("dotnet test", on=[Hook.SESSION_START, Hook.SUBAGENT_START]))
+```
+
+- `Context.add` rejects a hook that has no context channel, for example `stop`.
+  Use `RequireCommand` there.
+- On `post-tool` it runs after each tool call, also after a read. To run a
+  command only after an edit, use `CheckAfterEdit`.
+- `reason` replaces the default sentence that follows the exit code. Say what
+  the agent must do with the output.
+- The other parameters work as in `RequireCommand`.
+
+## RevertWrites
+
+```python
+RevertWrites(patterns, *, on=(Hook.SESSION_START, Hook.SUBAGENT_START, Hook.POST_TOOL), name="")
+```
+
+Uses git to keep matching paths equal to the last commit. It needs a git
+repository at the project root or above it. It never blocks.
+
+```python
+context.add(RevertWrites(["tests/**", "pyproject.toml"]))
+```
+
+**After each tool call**, it finds the changes to matching paths, reverts them
+with `git restore` and `git clean`, and tells the agent:
+
+> The changes made to the files tests/test_a.py were reverted, because these are
+> protected files that cannot be changed.
+
+- The check reads git, not the tool call. It also finds a change that a shell
+  command made, which `BlockWrites` cannot see.
+- A changed, staged, deleted or new file that matches a pattern is reverted.
+  Files that git ignores are not checked.
+- The revert discards the changes. They cannot be restored.
+
+**When a session or a subagent starts**, it finds the matching paths that
+already have uncommitted changes, and tells the agent:
+
+> The protected files tests/test_a.py have uncommitted changes. Protected files
+> cannot be changed. Stop and ask the user to commit or discard these changes
+> before you continue.
+
+- Git cannot tell who made a change. Thus these paths are recorded in the state,
+  and the process does not revert them. Your work is not lost.
+- A recorded path is protected again after you commit or discard its changes.
+- Do not change a protected file while the agent works. The next tool call
+  reverts a change that was not there at the start.
+
+Copilot CLI has no context channel on `session-start`, and no `subagent-start`
+hook. Use `on=[Hook.POST_TOOL]` there. The first tool call of each agent then
+does the start check: it gives the warning and reverts nothing.
+
+Pair it with `BlockWrites` for the same patterns. `BlockWrites` stops a write
+tool before the change. `RevertWrites` removes the changes that get past it.
+
 ## AddContext
 
 ```python
@@ -196,9 +265,49 @@ class CommandOutcome:
     exit_code: int
     output: str
 
-CommandRunner = Callable[[Command, Path, float], CommandOutcome]
+CommandRunner = Callable[[Command, Path, float, str], CommandOutcome]
 ```
+
+The arguments are the command, the working folder, the timeout in seconds, and
+the text for the standard input of the command.
 
 `run_subprocess` is the default. It joins stdout and stderr, and it reports a
 timeout as exit code 124 and a missing program as 127, so a guardrail never
 crashes because a tool is absent.
+
+## Commands in other languages
+
+`RequireCommand`, `CheckAfterEdit` and `RunCommand` run any program, so they
+also run the test framework of a project that is not in Python. The contract is
+the same for the three processes:
+
+- **stdin:** the hook event as one JSON object. The keys are the fields of
+  `HookInput` in [data-model.md](data-model.md), without `raw`, and they are the
+  same for every harness. A command that does not read stdin still works.
+- **Exit code:** 0 means that the command passed. Any other value means that it
+  failed.
+- **stdout and stderr:** on a failure, the end of the joined output goes to the
+  agent. On a pass, the output is discarded.
+
+A C# project with a test run at each point of the agent lifecycle:
+
+```python
+import agent_actions as aa
+from agent_actions.processes import CheckAfterEdit, LoopGuard, RequireCommand, RunCommand
+
+TESTS = "dotnet test --nologo"
+
+context = aa.get_current_context()
+# Start of a session or of a subagent: show the tests that fail already.
+context.add(RunCommand(TESTS, on=[aa.Hook.SESSION_START, aa.Hook.SUBAGENT_START]))
+# After an edit of a C# file: give the failures as feedback.
+context.add(CheckAfterEdit(TESTS, patterns=["*.cs"]))
+# End of the task of the agent or of a subagent: block the stop while a test fails.
+context.add(
+    LoopGuard(RequireCommand(TESTS, on=[aa.Hook.STOP, aa.Hook.SUBAGENT_STOP], name="tests"))
+)
+aa.run(context)
+```
+
+To decide in your own program, read the event from stdin, print the message for
+the agent, and exit with 0 or 1.

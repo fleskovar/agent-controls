@@ -9,8 +9,9 @@ state between calls, and records each call under `.hooks/`.
 - A process on a hook that cannot deliver its result fails loudly, not silently.
 - Each process can declare state. The framework restores and records it.
 - Included processes: path guards, shell guard, required tests and commands,
-  loop guard, post-edit check, context injection, tool call budget.
-- No runtime dependencies. Python 3.11 or later.
+  loop guard, post-edit check, revert of protected files, context injection,
+  tool call budget.
+- One runtime dependency: GitPython. Python 3.11 or later.
 
 ## Quick start
 

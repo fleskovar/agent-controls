@@ -1,7 +1,12 @@
-"""Processes that run a command: on stop until it passes, or after an edit."""
+"""Processes that run a command: on stop until it passes, after an edit, or on any hook.
+
+Each command gets the hook event as JSON on its standard input. The exit code and
+the output are its answer.
+"""
 
 from __future__ import annotations
 
+import json
 import shlex
 import subprocess
 import sys
@@ -11,7 +16,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from agent_actions.model import Hook, HookInput, ProcessResult, ToolKind, allow, block
-from agent_actions.process import ALLOW_ONLY, PostToolProcess, StopProcess
+from agent_actions.process import ALLOW_ONLY, EventProcess, PostToolProcess, StopProcess
 from agent_actions.processes.paths import matching_pattern, relative_path
 
 Command = str | Sequence[str]
@@ -26,6 +31,7 @@ TESTS_REASON: Final = (
     "Make all tests pass before you finish. Do not change or delete tests to make them pass."
 )
 EDIT_REASON: Final = "Fix these problems."
+RUN_REASON: Final = "Read the output before you continue."
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,16 +40,20 @@ class CommandOutcome:
     output: str
 
 
-CommandRunner = Callable[[Command, Path, float], CommandOutcome]
+CommandRunner = Callable[[Command, Path, float, str], CommandOutcome]
 
 
-def run_subprocess(command: Command, cwd: Path, timeout: float) -> CommandOutcome:
-    """Run a command. A string runs in the shell; a sequence runs without a shell."""
+def run_subprocess(command: Command, cwd: Path, timeout: float, stdin: str = "") -> CommandOutcome:
+    """Run a command, and write `stdin` to its standard input.
+
+    A string runs in the shell; a sequence runs without a shell.
+    """
     try:
         completed = subprocess.run(
             command,
             cwd=cwd,
             shell=isinstance(command, str),
+            input=stdin,
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -85,6 +95,11 @@ def working_dir(event: HookInput) -> Path:
     return Path(event.root or event.cwd or ".")
 
 
+def event_json(event: HookInput) -> str:
+    """The hook event as JSON, in the same shape for every harness. Commands read it on stdin."""
+    return json.dumps(event.to_record())
+
+
 class RequireCommand(StopProcess):
     """Blocks the stop while a command fails, and gives the command output to the agent.
 
@@ -111,7 +126,9 @@ class RequireCommand(StopProcess):
         self.command_runner = command_runner
 
     def run(self, event: HookInput) -> ProcessResult:
-        outcome = self.command_runner(self.command, working_dir(event), self.timeout)
+        outcome = self.command_runner(
+            self.command, working_dir(event), self.timeout, event_json(event)
+        )
         shown = display(self.command)
         return (
             allow(f"`{shown}` passed.")
@@ -166,7 +183,9 @@ class CheckAfterEdit(PostToolProcess):
         result = allow()
         if paths is not None:
             command = with_paths(self.command, paths)
-            outcome = self.command_runner(command, working_dir(event), self.timeout)
+            outcome = self.command_runner(
+                command, working_dir(event), self.timeout, event_json(event)
+            )
             shown = display(command)
             result = (
                 allow(f"`{shown}` passed.")
@@ -192,3 +211,48 @@ class CheckAfterEdit(PostToolProcess):
             if self.patterns and not checked:
                 checked = None
         return checked
+
+
+class RunCommand(EventProcess):
+    """Runs a command on any hook with a context channel, and gives its failure output as context.
+
+    Use it on the start hooks, to tell the agent what is broken before it works.
+    It never blocks. To keep the agent working until a command passes, use
+    RequireCommand on the stop hooks. To run a command only after an edit, use
+    CheckAfterEdit.
+    """
+
+    uses_context = True
+
+    def __init__(
+        self,
+        command: Command,
+        *,
+        on: Sequence[Hook] = (Hook.SESSION_START,),
+        reason: str = RUN_REASON,
+        timeout: float = 240.0,
+        max_output_chars: int = DEFAULT_MAX_OUTPUT_CHARS,
+        name: str = "",
+        command_runner: CommandRunner = run_subprocess,
+    ) -> None:
+        self.command = command
+        self.on = tuple(on)
+        self.reason = reason
+        self.timeout = timeout
+        self.max_output_chars = max_output_chars
+        self.name = name
+        self.command_runner = command_runner
+
+    def run(self, event: HookInput) -> ProcessResult:
+        outcome = self.command_runner(
+            self.command, working_dir(event), self.timeout, event_json(event)
+        )
+        shown = display(self.command)
+        return (
+            allow(f"`{shown}` passed.")
+            if outcome.exit_code == 0
+            else allow(
+                context=f"`{shown}` failed with exit code {outcome.exit_code}. {self.reason}\n"
+                f"{tail(outcome.output, self.max_output_chars)}"
+            )
+        )

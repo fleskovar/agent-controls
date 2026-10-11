@@ -1,0 +1,16 @@
+{
+  "session_id": "2b3c4d5e-6f70-4812-9a3b-4c5d6e7f8091",
+  "transcript_path": "{{root}}/transcript.jsonl",
+  "cwd": "{{root}}",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "sed -i 's/90m/100m/' tests/PricingTests.cs && cp notes/Shortcut.cs tests/"
+  },
+  "tool_use_id": "toolu_11",
+  "tool_response": {
+    "stdout": "",
+    "stderr": ""
+  }
+}

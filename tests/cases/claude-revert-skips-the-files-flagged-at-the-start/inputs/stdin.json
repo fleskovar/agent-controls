@@ -1,0 +1,18 @@
+{
+  "session_id": "3c4d5e6f-7081-4923-ab4c-5d6e7f809102",
+  "transcript_path": "{{root}}/transcript.jsonl",
+  "cwd": "{{root}}",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "{{root}}/tests/DiscountTests.cs",
+    "old_string": "Assert.Equal(5m, Pricing.Price(5m))",
+    "new_string": "Assert.True(true)"
+  },
+  "tool_use_id": "toolu_12",
+  "tool_response": {
+    "type": "text",
+    "text": "File edited"
+  }
+}

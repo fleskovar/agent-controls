@@ -1,0 +1,10 @@
+{
+  "exit_code": 0,
+  "stdout": {
+    "hookSpecificOutput": {
+      "hookEventName": "PostToolUse",
+      "additionalContext": "`dotnet test --nologo` failed with exit code 1 after your edit. Fix these problems.\nclaude post-tool: Write (write) on {{root}}/src/Pricing.cs\nFailed PricingTests.Discount_is_ten_percent"
+    }
+  },
+  "stderr": ""
+}

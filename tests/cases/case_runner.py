@@ -6,11 +6,15 @@ and the baseline writer all call the same three functions.
     inputs/case.json    {"harness", "hook", "now"} or {"command": "install", "harness"}
     inputs/runner.py    the runner file that the harness would call
     inputs/stdin.json   the hook payload; "{{root}}" becomes the project folder
-    inputs/project/     optional files copied into the project folder first
+    inputs/commit/      optional files that become the one commit of a git repository
+                        in the project folder, together with the runner file
+    inputs/project/     optional files copied into the project folder next: a seeded
+                        .hooks/, or the uncommitted changes on top of inputs/commit/
 
     outputs/response.json   exit code, stdout document and stderr of one hook call
     outputs/state.json      the newest step in state.json of the agent folder
     outputs/folders.json    every folder under .hooks/, relative and sorted
+    outputs/worktree.json   the lines of `git status --short` after the call
     outputs/config.json     the harness configuration file (install cases)
 
 Only the output files that a case folder contains are compared.
@@ -27,6 +31,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
 
+import git
+
 from agent_actions.app import install_hooks, parse_payload, run_hook
 from agent_actions.harnesses import make_adapter
 from agent_actions.model import Harness, Hook
@@ -36,6 +42,7 @@ from agent_actions.storage import read_json
 CASES_ROOT: Final = Path(__file__).resolve().parent
 INPUTS_DIR: Final = "inputs"
 OUTPUTS_DIR: Final = "outputs"
+COMMIT_DIR: Final = "commit"
 PROJECT_DIR: Final = "project"
 RUNNER_FILE: Final = "runner.py"
 ROOT_PLACEHOLDER: Final = "{{root}}"
@@ -62,8 +69,14 @@ def run_case(case_dir: Path, project: Path) -> dict[str, Any]:
     inputs = case_dir / INPUTS_DIR
     spec = read_json(inputs / "case.json")
     project.mkdir(parents=True, exist_ok=True)
+    if (inputs / COMMIT_DIR).is_dir():
+        _commit(inputs / COMMIT_DIR, inputs / RUNNER_FILE, project)
     if (inputs / PROJECT_DIR).is_dir():
-        shutil.copytree(inputs / PROJECT_DIR, project, dirs_exist_ok=True)
+        # copyfile gives each file a new modification time. With the time of the source,
+        # git can take a changed file of the same size for the committed one.
+        shutil.copytree(
+            inputs / PROJECT_DIR, project, copy_function=shutil.copyfile, dirs_exist_ok=True
+        )
     shutil.copy(inputs / RUNNER_FILE, project / RUNNER_FILE)
     harness = Harness(spec["harness"])
     documents = (
@@ -85,6 +98,24 @@ def write_baselines(case_dir: Path, actual: Mapping[str, Any]) -> None:
         if not present or name in present:
             text = json.dumps(document, indent=JSON_INDENT, ensure_ascii=False)
             (outputs / name).write_text(text + "\n", encoding="utf-8")
+
+
+def _commit(files: Path, runner: Path, project: Path) -> None:
+    """A git repository in the project folder. Its one commit holds the files and the runner."""
+    shutil.copytree(files, project, copy_function=shutil.copyfile, dirs_exist_ok=True)
+    shutil.copy(runner, project / RUNNER_FILE)
+    with git.Repo.init(project) as repo:
+        repo.git.add("--all")
+        repo.index.commit("The last commit")
+
+
+def _git_status(project: Path) -> list[str]:
+    """What differs from the last commit. Empty when the case has no repository."""
+    lines: list[str] = []
+    if (project / ".git").is_dir():
+        with git.Repo(project) as repo:
+            lines = repo.git.status("--short", "--untracked-files=all").splitlines()
+    return lines
 
 
 def _install_documents(project: Path, harness: Harness, spec: Mapping[str, Any]) -> dict[str, Any]:
@@ -120,6 +151,7 @@ def _run_documents(
         "folders.json": sorted(
             path.relative_to(hooks_dir).as_posix() for path in hooks_dir.rglob("*") if path.is_dir()
         ),
+        "worktree.json": _git_status(project),
     }
 
 

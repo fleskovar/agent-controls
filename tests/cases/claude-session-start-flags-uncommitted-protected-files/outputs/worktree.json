@@ -1,0 +1,5 @@
+[
+  " M src/Pricing.cs",
+  " M tests/PricingTests.cs",
+  "?? tests/TaxTests.cs"
+]

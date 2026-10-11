@@ -1,0 +1,10 @@
+{
+  "exit_code": 0,
+  "stdout": {
+    "hookSpecificOutput": {
+      "hookEventName": "SessionStart",
+      "additionalContext": "`dotnet test --nologo` failed with exit code 1. Read the output before you continue.\nFailed PricingTests.Discount_is_ten_percent [12 ms]\nFailed!  - Failed: 1, Passed: 4, Skipped: 0, Total: 5"
+    }
+  },
+  "stderr": ""
+}

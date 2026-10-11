@@ -2,7 +2,7 @@ import agent_actions as aa
 from agent_actions.processes import CommandOutcome, LoopGuard, RequireTests
 
 
-def failing_pytest(command, cwd, timeout):
+def failing_pytest(command, cwd, timeout, stdin):
     """A fake test run that always fails, as in the two recorded attempts before."""
     return CommandOutcome(exit_code=1, output="1 failed, 4 passed")
 

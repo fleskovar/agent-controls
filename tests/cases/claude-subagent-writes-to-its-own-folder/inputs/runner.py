@@ -2,7 +2,7 @@ import agent_actions as aa
 from agent_actions.processes import CommandOutcome, RequireTests
 
 
-def passing_pytest(command, cwd, timeout):
+def passing_pytest(command, cwd, timeout, stdin):
     """A fake test run where everything passes."""
     return CommandOutcome(exit_code=0, output="5 passed")
 

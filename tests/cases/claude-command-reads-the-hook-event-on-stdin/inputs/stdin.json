@@ -1,0 +1,17 @@
+{
+  "session_id": "6f708192-a3b4-4c56-9e7f-809102132435",
+  "transcript_path": "{{root}}/transcript.jsonl",
+  "cwd": "{{root}}",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "{{root}}/src/Pricing.cs",
+    "content": "public static class Pricing { }\n"
+  },
+  "tool_use_id": "toolu_13",
+  "tool_response": {
+    "type": "text",
+    "text": "File written"
+  }
+}

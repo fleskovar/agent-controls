@@ -1,0 +1,5 @@
+{
+  "harness": "claude",
+  "hook": "post-tool",
+  "now": "2026-09-15T10:00:00+00:00"
+}

@@ -1,0 +1,16 @@
+{
+  "RevertWrites": {
+    "state": {
+      "unresolved": [
+        "tests/PricingTests.cs"
+      ]
+    },
+    "outputs": {
+      "verdict": "allow",
+      "reasons": [],
+      "context": [
+        "The changes made to the files tests/DiscountTests.cs were reverted, because these are protected files that cannot be changed."
+      ]
+    }
+  }
+}

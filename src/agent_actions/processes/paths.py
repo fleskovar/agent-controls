@@ -1,4 +1,4 @@
-"""Path guards: block tools that read or change protected paths."""
+"""Path guards: block tools that read or change protected paths, or revert the change."""
 
 from __future__ import annotations
 
@@ -6,10 +6,19 @@ import os
 import re
 from collections.abc import Iterable, Sequence
 from fnmatch import fnmatchcase
+from pathlib import Path
 from typing import Final
 
-from agent_actions.model import HookInput, ProcessResult, ToolCall, ToolKind, allow, block
-from agent_actions.process import ALLOW_OR_BLOCK, PreToolProcess
+from agent_actions.model import (
+    Hook,
+    HookInput,
+    ProcessResult,
+    ToolCall,
+    ToolKind,
+    allow,
+    block,
+)
+from agent_actions.process import ALLOW_OR_BLOCK, EventProcess, PreToolProcess
 
 WRITE_REASON: Final = (
     "These files are protected. Do not change them. "
@@ -18,6 +27,14 @@ WRITE_REASON: Final = (
 READ_REASON: Final = (
     "These files can contain secrets. Do not read, search or print them, "
     "and do not ask for their content."
+)
+START_WARNING: Final = (
+    "The protected files {names} have uncommitted changes. Protected files cannot be "
+    "changed. Stop and ask the user to commit or discard these changes before you continue."
+)
+REVERT_WARNING: Final = (
+    "The changes made to the files {names} were reverted, because these are protected "
+    "files that cannot be changed."
 )
 _WILDCARDS: Final = re.compile(r"[*?\[\]]")
 
@@ -176,3 +193,68 @@ class BlockReads(PathGuard):
             check_shell=check_shell,
             name=name,
         )
+
+
+class RevertWrites(EventProcess):
+    """Reverts changes to protected paths with git after each tool call, and tells the agent.
+
+    The check reads git, not the tool call, so it also finds a change that a shell
+    command made. A protected path must equal the last commit.
+
+    Git cannot tell who made a change. Thus the start hooks record the protected
+    paths that already have uncommitted changes, and tell the agent to ask the user
+    about them. The process does not revert a recorded path until the path is clean.
+    """
+
+    uses_context = True
+
+    def __init__(
+        self,
+        patterns: str | Sequence[str],
+        *,
+        on: Sequence[Hook] = (Hook.SESSION_START, Hook.SUBAGENT_START, Hook.POST_TOOL),
+        name: str = "",
+    ) -> None:
+        self.patterns = (patterns,) if isinstance(patterns, str) else tuple(patterns)
+        self.on = tuple(on)
+        self.name = name
+
+    def __state__(self) -> None:
+        # None: no start hook ran for this agent, so the first call records the paths.
+        self.unresolved: list[str] | None = None
+
+    def run(self, event: HookInput) -> ProcessResult:
+        # Imported here: the import takes about 200 ms, and it fails when git is not
+        # installed. A hook call that does not use this process must not pay for it.
+        import git
+
+        repo = git.Repo(event.root, search_parent_directories=True)
+        repo.git.update_environment(GIT_LITERAL_PATHSPECS="1")
+        # ponytail: two git scans of the whole work tree on each tool call, and all
+        # paths in one command line. Pass pathspecs to git if a repository is too large.
+        untracked = set(repo.untracked_files)
+        changed = {
+            path for diff in repo.head.commit.diff(None) for path in (diff.a_path, diff.b_path)
+        } | untracked
+        dirty = sorted(
+            path
+            for path in changed
+            if path
+            and matching_pattern(
+                _relative_to(str(Path(repo.working_dir, path)), event.root), self.patterns
+            )
+        )
+        if event.hook is not Hook.POST_TOOL or self.unresolved is None:
+            self.unresolved = dirty
+            warning, names = START_WARNING, dirty
+        else:
+            self.unresolved = [path for path in self.unresolved if path in dirty]
+            names = [path for path in dirty if path not in self.unresolved]
+            tracked = [path for path in names if path not in untracked]
+            new = [path for path in names if path in untracked]
+            if tracked:
+                repo.git.restore("--source=HEAD", "--staged", "--worktree", "--", *tracked)
+            if new:
+                repo.git.clean("-f", "--", *new)
+            warning = REVERT_WARNING
+        return allow(context=warning.format(names=", ".join(names))) if names else allow()

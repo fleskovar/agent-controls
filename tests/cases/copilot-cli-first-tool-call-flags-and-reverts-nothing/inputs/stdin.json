@@ -1,0 +1,13 @@
+{
+  "sessionId": "4d5e6f70-8192-4a34-bc5d-6e7f80910213",
+  "timestamp": 1757930400000,
+  "cwd": "{{root}}",
+  "toolName": "bash",
+  "toolArgs": {
+    "command": "dotnet build"
+  },
+  "toolResult": {
+    "resultType": "success",
+    "textResultForLlm": "Build succeeded."
+  }
+}

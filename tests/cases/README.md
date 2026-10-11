@@ -28,6 +28,15 @@ python tests/cases/case_runner.py claude-edit-of-protected-test-is-denied
 | [vscode-apply-patch-touching-tests-is-denied](vscode-apply-patch-touching-tests-is-denied/) | vscode | pre-tool | The files of an `apply_patch` call come from the patch headers. |
 | [claude-search-of-the-secrets-folder-is-denied](claude-search-of-the-secrets-folder-is-denied/) | claude | pre-tool | A search is a read, and `secrets/**` covers the folder `secrets` itself. |
 
+### Reverts: what git puts back after a tool call
+
+| Case | Harness | Hook | What it pins |
+| --- | --- | --- | --- |
+| [claude-shell-change-to-a-protected-test-is-reverted](claude-shell-change-to-a-protected-test-is-reverted/) | claude | post-tool | The main guardrail of `RevertWrites`: a change that a shell command made is reverted, a new file is deleted, and other work stays. |
+| [claude-session-start-flags-uncommitted-protected-files](claude-session-start-flags-uncommitted-protected-files/) | claude | session-start | Changes from before the session are flagged to the agent and recorded. Nothing is reverted. |
+| [claude-revert-skips-the-files-flagged-at-the-start](claude-revert-skips-the-files-flagged-at-the-start/) | claude | post-tool | A flagged file keeps the work of the user, and it is protected again after it is clean. |
+| [copilot-cli-first-tool-call-flags-and-reverts-nothing](copilot-cli-first-tool-call-flags-and-reverts-nothing/) | copilot-cli | post-tool | Without a start hook, the first tool call does the start check, and the limit of that rule. |
+
 ### Shell guards: what the agent may run
 
 | Case | Harness | Hook | What it pins |
@@ -49,6 +58,8 @@ python tests/cases/case_runner.py claude-edit-of-protected-test-is-denied
 | --- | --- | --- | --- |
 | [claude-post-tool-check-gives-lint-output-as-context](claude-post-tool-check-gives-lint-output-as-context/) | claude | post-tool | Lint output after an edit reaches the agent as context, never as a block. |
 | [copilot-cli-post-tool-check-uses-additional-context](copilot-cli-post-tool-check-uses-additional-context/) | copilot-cli | post-tool | The **same runner file** as the case above, with the output shape of another harness. |
+| [claude-session-start-gives-failing-tests-as-context](claude-session-start-gives-failing-tests-as-context/) | claude | session-start | `RunCommand` with the test command of a C# project: a failed run reaches the agent as context, never as a block. |
+| [claude-command-reads-the-hook-event-on-stdin](claude-command-reads-the-hook-event-on-stdin/) | claude | post-tool | The contract for a program in another language: the hook event arrives on stdin as JSON with neutral names. |
 | [vscode-prompt-with-a-token-is-blocked](vscode-prompt-with-a-token-is-blocked/) | vscode | user-prompt | A custom process in the runner file, and the VS Code prompt shape (`continue` and `stopReason`). |
 
 ### Sessions and state
@@ -83,11 +94,14 @@ python tests/cases/case_runner.py claude-edit-of-protected-test-is-denied
         case.json      {"harness", "hook", "now"} or {"command": "install", "harness", "python", "timeout"}
         runner.py      the runner file the harness would call
         stdin.json     the hook payload; "{{root}}" becomes the project folder
-        project/       optional files copied into the project first (a seeded .hooks/ or .claude/)
+        commit/        optional files that become the one commit of a git repository in the project
+        project/       optional files copied into the project next (a seeded .hooks/ or .claude/,
+                       or the uncommitted changes on top of commit/)
     outputs/
         response.json  exit code, stdout document and stderr of the call
         state.json     the newest step of the agent folder: state and outputs per process
         folders.json   every folder under .hooks/, relative and sorted
+        worktree.json  the lines of `git status --short` after the call (cases with commit/)
         config.json    the harness configuration file (install cases)
     README.md          behaviour, why it exists, the input rule table, the walkthrough
 ```
@@ -99,6 +113,12 @@ decision has no `folders.json`.
 Everything is deterministic: the clock comes from `case.json`, commands come from
 an injected runner inside `inputs/runner.py`, and the case runner puts `{{root}}`
 back in place of the temporary folder before it compares.
+
+A case with `inputs/commit/` runs on a real git repository, because git is the
+unit that `RevertWrites` reads. The case runner builds the repository from the
+two input folders: `commit/` and the runner file are the last commit, and
+`project/` is the work tree on top of it. A file that occurs in both folders is a
+modified file. A file only in `project/` is a new file.
 
 ## Adding a case
 
