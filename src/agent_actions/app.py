@@ -7,7 +7,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, cast
 
 from agent_actions.engine import ProcessRecord, execute
 from agent_actions.errors import AgentActionsError, PayloadError, RunnerFileError
@@ -31,12 +31,12 @@ def system_clock() -> datetime:
 def parse_payload(text: str) -> dict[str, Any]:
     """The hook payload as a JSON object. Empty input is an empty object."""
     try:
-        payload = json.loads(text) if text.strip() else {}
+        payload: Any = json.loads(text) if text.strip() else {}
     except json.JSONDecodeError as error:
         raise PayloadError(f"The hook payload is not valid JSON: {error}") from error
     if not isinstance(payload, dict):
         raise PayloadError("The hook payload must be a JSON object.")
-    return payload
+    return cast("dict[str, Any]", payload)
 
 
 def run_hook(

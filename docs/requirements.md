@@ -155,6 +155,10 @@ that code:
 - **R33.** `agent_actions sessions` lists the recorded sessions, newest first.
 - **R34.** `agent_actions skills [--dest DIR]` copies the agent skills of the
   package into a project.
+- **R47.** `agent_actions hcm init` registers the agent bundle of the package in
+  the hcm registry. `agent_actions hcm update` registers the bundle of the
+  installed package version, then updates it in the current project. Both run
+  the `hcm` command, and both fail with its install command when it is missing.
 
 ### 3.8 Included processes
 

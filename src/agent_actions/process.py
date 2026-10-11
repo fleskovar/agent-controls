@@ -58,7 +58,7 @@ class Process(ABC):
             before = set(vars(self))
             self.__state__()
             names = tuple(key for key in vars(self) if key not in before)
-            self.__dict__[_STATE_NAMES_ATTRIBUTE] = names
+            vars(self)[_STATE_NAMES_ATTRIBUTE] = names
         return names
 
     def load_state(self, saved: Mapping[str, Any]) -> None:

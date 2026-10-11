@@ -4,25 +4,31 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from collections.abc import Sequence
-from importlib import resources
 from pathlib import Path
 from typing import Final
 
 from agent_actions.app import DEFAULT_TIMEOUT_SECONDS, install_hooks, run_hook
 from agent_actions.errors import AgentActionsError
+from agent_actions.hcm import BUNDLE_DIR, hcm_init, hcm_update
 from agent_actions.model import Harness, Hook
 from agent_actions.session import SessionStore
 
 DEFAULT_SKILLS_DEST: Final = Path(".claude/skills")
-SKILLS_PACKAGE_DIR: Final = "skills"
+SKILLS_DIR: Final = BUNDLE_DIR / "skills"
 HARNESS_NAMES: Final = tuple(harness.value for harness in Harness)
 HOOK_NAMES: Final = tuple(hook.value for hook in Hook)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    # `hcm update` passes the options that it does not know to hcm.
+    args, hcm_args = parser.parse_known_args(argv)
+    if hcm_args and args.handler is not _hcm_update:
+        parser.error(f"unrecognized arguments: {' '.join(hcm_args)}")
+    args.hcm_args = hcm_args
     try:
         exit_code = int(args.handler(args))
     except AgentActionsError as error:
@@ -68,6 +74,25 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Destination folder (default: {DEFAULT_SKILLS_DEST.as_posix()}).",
     )
     skills.set_defaults(handler=_skills)
+
+    hcm = commands.add_parser("hcm", help="Give the agent bundle of this package to hcm.")
+    hcm_commands = hcm.add_subparsers(required=True, metavar="HCM_COMMAND")
+    init = hcm_commands.add_parser("init", help="Register the agent bundle in the hcm registry.")
+    init.add_argument(
+        "--dev",
+        nargs="?",
+        type=Path,
+        const=BUNDLE_DIR,
+        metavar="PATH",
+        help="Development mode: hcm reads the bundle folder in place (default: this package).",
+    )
+    init.set_defaults(handler=_hcm_init)
+    update = hcm_commands.add_parser(
+        "update",
+        help="Register the bundle of this package version, then update it in this project. "
+        "Other options go to `hcm update`, for example: -t claude-code --no-prompt.",
+    )
+    update.set_defaults(handler=_hcm_update)
     return parser
 
 
@@ -131,13 +156,15 @@ def _sessions(args: argparse.Namespace) -> int:
 
 
 def _skills(args: argparse.Namespace) -> int:
-    source = resources.files("agent_actions").joinpath(SKILLS_PACKAGE_DIR)
-    copied = []
-    for skill in (item for item in source.iterdir() if item.is_dir()):
-        target = args.dest / skill.name
-        target.mkdir(parents=True, exist_ok=True)
-        for item in (entry for entry in skill.iterdir() if entry.is_file()):
-            (target / item.name).write_bytes(item.read_bytes())
-        copied.append(skill.name)
+    shutil.copytree(SKILLS_DIR, args.dest, dirs_exist_ok=True)
+    copied = sorted(skill.name for skill in SKILLS_DIR.iterdir())
     print(f"Copied {', '.join(copied)} to {args.dest}")
     return 0
+
+
+def _hcm_init(args: argparse.Namespace) -> int:
+    return hcm_init(args.dev)
+
+
+def _hcm_update(args: argparse.Namespace) -> int:
+    return hcm_update(args.hcm_args)

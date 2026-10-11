@@ -69,7 +69,7 @@ class ToolCall:
 
     name: str
     kind: ToolKind
-    arguments: Mapping[str, Any] = field(default_factory=dict)
+    arguments: Mapping[str, Any] = field(default_factory=dict[str, Any])
     paths: tuple[str, ...] = ()
     command: str | None = None
     output: str | None = None
@@ -95,7 +95,7 @@ class HookInput:
     prompt: str | None = None
     last_message: str | None = None
     stop_hook_active: bool = False
-    raw: Mapping[str, Any] = field(default_factory=dict)
+    raw: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def to_record(self) -> dict[str, Any]:
         """Plain JSON form for state.json. The raw payload goes to io.json instead."""

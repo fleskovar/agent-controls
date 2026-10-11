@@ -1,0 +1,8 @@
+name: agent-actions
+version: 0.1.0
+description: Skills and runner templates to install, write and manage Agent Actions hooks, processes and guardrails in a project of any language. Install it in a project that uses the agent_actions Python package.
+author: fleskovar
+homepage: https://github.com/fleskovar/agent_actions
+tags: [agent-actions, hooks, guardrails, testing, coverage, linting]
+# Agent Actions has hook adapters for these harnesses only.
+targets: [claude-code, copilot, copilot-cli]

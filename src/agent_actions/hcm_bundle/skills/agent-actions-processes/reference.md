@@ -1,0 +1,302 @@
+# Process reference
+
+Import the included processes from `agent_actions.processes`. Each process works
+in each supported harness, unless its section tells you a limit.
+
+| Process | Default hook | Effect |
+| --- | --- | --- |
+| [`BlockWrites`](#blockwrites) | `pre-tool` | Blocks write tools on protected paths. |
+| [`BlockReads`](#blockreads) | `pre-tool` | Blocks read, search and write tools on secret paths. |
+| [`PathGuard`](#pathguard) | `pre-tool` | Blocks the tool kinds that you select on protected paths. |
+| [`BlockShellCommands`](#blockshellcommands) | `pre-tool` | Blocks shell commands that match a regular expression. |
+| [`ToolCallBudget`](#toolcallbudget) | `pre-tool` | Blocks tool calls after a maximum. |
+| [`CheckAfterEdit`](#checkafteredit) | `post-tool` | Runs a command after a write tool. Adds the failure output as context. |
+| [`RevertWrites`](#revertwrites) | start hooks, `post-tool` | Reverts changes to protected paths with git. |
+| [`RunCommand`](#runcommand) | `session-start` | Runs a command. Adds the failure output as context. |
+| [`AddContext`](#addcontext) | `session-start` | Adds text to the context of the agent. |
+| [`RequireCommand`](#requirecommand) | `stop` | Blocks the stop while a command fails. |
+| [`RequireTests`](#requiretests) | `stop` | `RequireCommand` with pytest. |
+| [`LoopGuard`](#loopguard) | The hooks of its process | Allows a blocked stop after a maximum of blocks. |
+
+Each process accepts `name=""`. Two processes of one class in one runner file
+need two names.
+
+## Path patterns
+
+`BlockWrites`, `BlockReads`, `PathGuard`, `RevertWrites` and the `patterns` of
+`CheckAfterEdit` use the same rules:
+
+- A pattern is relative to the project root. Matching ignores case.
+- `*` also matches `/`. `?` matches one character.
+- A pattern without a wildcard also covers the content of the folder that it
+  names. `tests/**` also covers the folder `tests`.
+- A name without a folder matches only in the project root. Add `**/name` for
+  each depth.
+- A relative tool path resolves against the working folder of the agent. If that
+  folder is outside the project root, the root is the base.
+
+## BlockWrites
+
+```python
+BlockWrites(patterns, *, reason=..., check_shell=False, name="")
+```
+
+Blocks write tools on matching paths.
+
+```python
+context.add(BlockWrites(["tests/**", "migrations/**", "pyproject.toml"]))
+```
+
+- `reason` replaces the default sentence that the agent reads. Tell the agent
+  what to do instead.
+- `check_shell=True` also blocks a shell command that mentions a protected path.
+  It is off by default, because a test command mentions `tests`.
+
+## BlockReads
+
+```python
+BlockReads(patterns, *, reason=..., check_shell=True, name="")
+```
+
+Blocks read, search and write tools on matching paths. By default, it also
+blocks a shell command that mentions one.
+
+```python
+context.add(BlockReads([".env", "**/.env", "secrets/**", "*.pem"]))
+```
+
+- The shell check is a substring match on the part of the pattern that has no
+  wildcard. It does not find a path that a command builds when it runs. It can
+  match other text: `.env` also matches `.environment`.
+- A search tool that names no path is not blocked.
+
+## PathGuard
+
+```python
+PathGuard(patterns, *, kinds, reason, check_shell=False, name="")
+```
+
+The base of the two guards above. `kinds` is a set of `ToolKind` values: `READ`,
+`WRITE`, `SEARCH`, `SHELL`, `OTHER`.
+
+```python
+context.add(
+    PathGuard(["archive/**"], kinds={aa.ToolKind.SEARCH}, reason="Do not search the archive.")
+)
+```
+
+## BlockShellCommands
+
+```python
+BlockShellCommands(patterns, *, reason=..., name="")
+```
+
+Blocks a shell command when a regular expression finds a match in it. Matching
+ignores case.
+
+```python
+context.add(
+    BlockShellCommands(
+        [r"\brm\s+-rf\b", r"git\s+push\s+.*--force", r"git\s+commit\s+.*--no-verify"]
+    )
+)
+```
+
+## ToolCallBudget
+
+```python
+ToolCallBudget(max_calls, *, kinds=tuple(ToolKind), reason=..., name="")
+```
+
+Counts the tool calls of one agent in one session, and blocks them after the
+maximum. A blocked call is not counted. A subagent has its own count.
+
+```python
+context.add(ToolCallBudget(50, kinds=[aa.ToolKind.SHELL], name="shell-budget"))
+```
+
+## CheckAfterEdit
+
+```python
+CheckAfterEdit(command, *, patterns=(), reason=..., timeout=120.0,
+               max_output_chars=3000, name="", command_runner=run_subprocess)
+```
+
+Runs a command after a write tool. On a failure, the agent gets the output as
+context. It never blocks.
+
+```python
+context.add(CheckAfterEdit([sys.executable, "-m", "ruff", "format", "{paths}"], patterns=["*.py"]))
+```
+
+- `{paths}` becomes the edited paths that match, as the harness gave them. In a
+  list command, each path is one argument.
+- With `patterns`, the command runs only when an edited path matches.
+- A shell command that changes a file does not start this process. Only a write
+  tool does.
+
+## RevertWrites
+
+```python
+RevertWrites(patterns, *, on=(Hook.SESSION_START, Hook.SUBAGENT_START, Hook.POST_TOOL), name="")
+```
+
+Keeps matching paths equal to the last git commit. It needs a git repository
+with one commit or more, at the project root or above it. It never blocks.
+
+- **After each tool call**, it reverts the changed, staged, deleted and new files
+  that match, and tells the agent. The check reads git, not the tool call. Thus
+  it also finds a change from a shell command. The revert discards the change.
+- **When a session or a subagent starts**, it records the matching paths that
+  have changes already, and tells the agent to ask the user about them. It does
+  not revert a recorded path until that path is clean.
+- It does not check a file that git ignores.
+- Copilot CLI has no context on `session-start` and no `subagent-start` hook.
+  Use `on=[Hook.POST_TOOL]` there. The first tool call then does the start check.
+
+Use it together with `BlockWrites` for the same patterns.
+
+## RunCommand
+
+```python
+RunCommand(command, *, on=(Hook.SESSION_START,), reason=..., timeout=240.0,
+           max_output_chars=3000, name="", command_runner=run_subprocess)
+```
+
+Runs a command on the hooks in `on`. On a failure, the agent gets the output as
+context. It never blocks.
+
+```python
+context.add(RunCommand(["dotnet", "test", "--nologo"], on=[aa.Hook.SESSION_START]))
+```
+
+- Each hook in `on` must have a context channel in the harness. `stop` has none.
+  Use `RequireCommand` there.
+- On `post-tool`, it runs after each tool call, also after a read. To run a
+  command only after an edit, use `CheckAfterEdit`.
+
+## AddContext
+
+```python
+AddContext(text, *, on=(Hook.SESSION_START,), name="")
+```
+
+Adds fixed text to the context of the agent.
+
+```python
+context.add(AddContext("Run the build script, not the compiler.", name="rules"))
+```
+
+## RequireCommand
+
+```python
+RequireCommand(command, *, reason=..., timeout=240.0, max_output_chars=3000,
+               on=(Hook.STOP,), name="", command_runner=run_subprocess)
+```
+
+Runs a command when the agent wants to stop. Exit code 0 allows the stop. Each
+other exit code blocks the stop, and the agent reads the reason and the output.
+
+```python
+context.add(RequireCommand(["cargo", "clippy", "--", "-D", "warnings"], name="lint"))
+context.add(RequireCommand(["mypy", "src"], name="types", on=[aa.Hook.STOP, aa.Hook.SUBAGENT_STOP]))
+```
+
+- `reason` follows the exit code in the message. Tell the agent what to do.
+- With `on=[Hook.STOP, Hook.SUBAGENT_STOP]`, a subagent cannot stop while the
+  command fails.
+
+## RequireTests
+
+```python
+RequireTests(command=(sys.executable, "-m", "pytest", "-q"), *, reason=..., **options)
+```
+
+`RequireCommand` with pytest as the default command, and a reason that forbids
+changes to the tests. For a different test tool, use `RequireCommand`.
+
+## LoopGuard
+
+```python
+LoopGuard(process, max_blocks=3, *, name="")
+```
+
+Wraps a stop process. It passes each block and counts it. After `max_blocks`
+blocks in a row, it allows the next stop and resets the count. A stop that the
+wrapped process allows also resets the count.
+
+```python
+context.add(LoopGuard(RequireCommand(["dotnet", "test"], name="tests"), max_blocks=3))
+```
+
+The last block tells the agent to report, at its next stop, that the approach
+needs a review. The name of the guard is `LoopGuard(<name of the process>)`.
+
+## Commands
+
+The `command` of `RequireCommand`, `CheckAfterEdit` and `RunCommand`:
+
+- A list runs without a shell. A string runs in the shell. Prefer a list.
+- The command runs in the project root.
+- The standard input is the hook event as one JSON object. Its keys are the
+  fields of `HookInput` below, without `raw`.
+- Exit code 0 is a pass. On a failure, the last `max_output_chars` characters of
+  the standard output and the standard error go to the agent.
+- A timeout gives exit code 124. A program that does not exist gives exit code 127.
+- `command_runner` replaces the function that starts the process. A test gives a
+  function that returns `CommandOutcome(exit_code, output)`:
+
+  ```python
+  from agent_actions.processes import CommandOutcome, RequireCommand
+
+
+  def failing(command, cwd, timeout, stdin):
+      return CommandOutcome(exit_code=1, output="1 failed, 4 passed")
+
+
+  process = RequireCommand(["dotnet", "test"], command_runner=failing)
+  ```
+
+## The hook event
+
+```python
+class HookInput:
+    harness: Harness  # CLAUDE, VSCODE, COPILOT_CLI
+    hook: Hook  # SESSION_START, USER_PROMPT, PRE_TOOL, POST_TOOL, STOP,
+    # SUBAGENT_START, SUBAGENT_STOP, PRE_COMPACT, SESSION_END
+    session_id: str
+    cwd: str  # the working folder of the agent
+    root: str  # the project root, which holds .hooks/
+    agent_id: str | None  # None for the main agent
+    agent_type: str | None
+    tool: ToolCall | None  # pre-tool and post-tool only
+    prompt: str | None  # user-prompt only
+    last_message: str | None  # stop and subagent-stop only
+    stop_hook_active: bool
+    raw: Mapping[str, Any]  # the payload of the harness, unchanged
+
+
+class ToolCall:
+    name: str  # the tool name of the harness, for example "Edit"
+    kind: ToolKind  # READ, WRITE, SEARCH, SHELL, OTHER
+    arguments: Mapping[str, Any]
+    paths: tuple[str, ...]  # each path in the arguments, at each depth
+    command: str | None  # shell tools only
+    output: str | None  # post-tool only
+```
+
+Use `tool.kind` in a process, not the tool name. The kind is the same in each harness.
+
+## Results
+
+```python
+aa.allow(*reasons, context=())  # no objection; the reasons go to log.txt
+aa.ask(reason, *more, context=())  # pre-tool only: the user decides
+aa.block(reason, *more, context=())  # block the tool call, the prompt or the stop
+```
+
+- `ask` and `block` need a reason. The agent reads it.
+- `context` is text for the agent. The hook must have a context channel.
+- When more than one process runs on a hook, the most restrictive verdict wins:
+  `block`, then `ask`, then `allow`. The agent reads the reasons of the processes
+  that gave that verdict, each with the process name in front.

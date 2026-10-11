@@ -12,7 +12,7 @@ requires-python = ">=3.11"
 dependencies = ["GitPython>=3.1"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.10"]
+dev = ["pytest>=8", "pytest-testmon>=2.1", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.10", "pyright>=1.1.380", "PyYAML>=6"]
 
 [project.scripts]
 agent_actions = "agent_actions.cli:main"
@@ -21,7 +21,7 @@ agent_actions = "agent_actions.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-agent_actions = ["skills/*/*.md"]
+agent_actions = ["hcm_bundle/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -33,14 +33,20 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RET", "ARG", "C4", "PTH", "RUF"]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RET", "ARG", "C4", "PTH", "RUF", "ANN"]
 # A process implements `run(event)` even when it does not read the event.
-ignore = ["ARG002"]
+ignore = ["ARG002", "ANN401"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ARG", "E501"]
+"tests/**" = ["ARG", "E501", "ANN"]
 "src/agent_actions/__init__.py" = ["N816"]
 
 [tool.mypy]
 strict = true
 files = ["src"]
+
+[tool.pyright]
+include = ["src"]
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"

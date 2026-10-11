@@ -112,7 +112,42 @@ Replay a recorded call with `agent_actions run agent_checks.py --harness claude
 | `agent_actions run RUNNER --harness H --hook K [--input FILE]` | Run one hook call. The harness calls this. |
 | `agent_actions install RUNNER [--target H] [--timeout S]` | Write the hook configuration. Asks for the harness when `--target` is missing. |
 | `agent_actions sessions` | List recorded sessions, newest first. |
-| `agent_actions skills [--dest DIR]` | Copy the agent skill for authoring processes (default `.claude/skills`). |
+| `agent_actions hcm init [--dev [PATH]]` | Register the agent bundle of the package in the [hcm](#agent-skills) registry. |
+| `agent_actions hcm update [HCM OPTIONS]` | Register the bundle of the installed package version, then run `hcm update agent-actions` in the project. |
+| `agent_actions skills [--dest DIR]` | Copy the agent skills without hcm (default `.claude/skills`). |
+
+## Agent skills
+
+The package contains an [hcm](https://github.com/fleskovar/harness_config_manager)
+bundle with the name `agent-actions`. It gives an AI agent the skills to install
+Agent Actions in a project of any language, to configure the checks, and to write
+new processes.
+
+| Skill | Content |
+| --- | --- |
+| `agent-actions-setup` | Install the package, register the hooks, upgrade, and find the cause of a hook problem. |
+| `agent-actions-guardrails` | Tests, a coverage floor, lint, format and protected files. Runner templates for C#, Odin, Julia and Python, and `coverage_floor.py` for Cobertura and LCOV reports. |
+| `agent-actions-processes` | Write and test a new process class. The reference of the included processes. |
+
+```bash
+python -m agent_actions hcm init            # one time for each machine: register the bundle
+hcm install agent-actions -t claude-code    # in each project; also `copilot` and `copilot-cli`
+```
+
+After an upgrade of the package, update the bundle in each project:
+
+```bash
+python -m agent_actions hcm update -t claude-code --no-prompt
+```
+
+The commands need the `hcm` command: `npm install -g harness-config-manager`.
+
+To work on the bundle, register the working copy with `python -m agent_actions
+hcm init --dev`. hcm then reads `src/agent_actions/hcm_bundle/` in place, and
+`hcm update agent-actions` in a test project installs each edit. `make test`
+loads each runner template in each harness, and compares the bundle version with
+the package version. Change the two versions together. When hcm is installed,
+`make test` also checks the bundle with `hcm validate` and `hcm refs check`.
 
 ## Documentation
 

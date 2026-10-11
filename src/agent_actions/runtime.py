@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import runpy
 import sys
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -134,7 +134,7 @@ def log(message: str) -> None:
 
 
 @contextmanager
-def capture_log(lines: list[str]) -> Iterator[None]:
+def capture_log(lines: list[str]) -> Generator[None, None, None]:
     token = _LOG_LINES.set(lines)
     try:
         yield
@@ -143,7 +143,7 @@ def capture_log(lines: list[str]) -> Iterator[None]:
 
 
 @contextmanager
-def log_source(label: str) -> Iterator[None]:
+def log_source(label: str) -> Generator[None, None, None]:
     token = _LOG_SOURCE.set(label)
     try:
         yield

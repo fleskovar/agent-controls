@@ -1,12 +1,16 @@
 ---
 name: agent-actions-processes
-description: Write, test and install Agent Actions processes - the Python guardrails that run on AI agent lifecycle hooks (Claude Code, VS Code, Copilot CLI). Use when a project asks to block edits of protected files, block reads of secrets, force tests or linters before the agent stops, limit retries or tool calls, add context at session start, or when a runner file, a hook configuration or a `.hooks/` session record needs a change.
+description: Write and test a new Agent Actions process - a Python class that runs on an AI agent lifecycle hook in Claude Code, VS Code or Copilot CLI - and look up the parameters of the included processes. Use when the included processes cannot do what a project needs, when a custom guardrail needs state or its own decision logic, or when you need the exact signature of an included process.
 ---
 
 # Author an Agent Actions process
 
 Agent Actions runs Python classes on agent lifecycle hooks. This skill tells you
 how to add one to a project without reading the framework source.
+
+To install the package and to register the hooks, use the `agent-actions-setup`
+skill. To set up tests, coverage, a linter or protected files in a project of any
+language, use the `agent-actions-guardrails` skill.
 
 ## 1. Check first whether an included process is enough
 
@@ -27,8 +31,8 @@ composition, not new code.
 | "Tell it the project rules at the start" | `AddContext("...")` |
 | "Cap the number of tool calls" | `ToolCallBudget(200)` |
 
-All of them come from `agent_actions.processes`. The parameters are in
-`docs/processes.md` of the framework.
+All of them come from `agent_actions.processes`. The parameters of each one are
+in [the process reference](./reference.md).
 
 ## 2. The runner file
 
@@ -55,14 +59,17 @@ Rules for the runner file:
 Install the hooks after each change of the process list:
 
 ```bash
-agent_actions install agent_checks.py --target claude
+python -m agent_actions install .hooks/agent_checks.py --target claude
 ```
+
+The runner file imports the modules that are beside it. Thus put a new process
+class in a file beside the runner file, and import it there.
 
 ## 3. Write a new process
 
 Pick the family of the hook. The family fixes the hooks and the verdicts.
 
-| Family | Hooks it may attach to | Verdicts | Typical use |
+| Family | Hooks it can attach to | Verdicts | Typical use |
 | --- | --- | --- | --- |
 | `PreToolProcess` | `pre-tool` | allow, ask, block | Block a tool call before it runs |
 | `PostToolProcess` | `post-tool` | allow, block | Give feedback about a finished call |
@@ -150,10 +157,12 @@ def test_write_over_the_limit_is_blocked() -> None:
     assert process.dump_state() == {"blocked": 1}
 ```
 
-Then add one case folder under `tests/cases/` for the behaviour that matters:
-`inputs/case.json`, `inputs/runner.py`, `inputs/stdin.json`, the expected
-`outputs/*.json`, and a `README.md` that walks a reader from the input to the
-output. Copy the closest existing case folder. Adding a case is adding a folder.
+The imports of the test are `from agent_actions.model import Harness, Hook,
+HookInput, ToolCall, ToolKind, Verdict`. Run the test with the interpreter that
+has agent_actions.
+
+Then run the process through the runner file, with a payload from a real
+session. Section 6 shows the command.
 
 Prove the test can fail: break the rule on purpose, watch the test go red, then
 restore it.
@@ -170,8 +179,8 @@ restore it.
 Replay a recorded call, with no agent:
 
 ```bash
-agent_actions run agent_checks.py --harness claude --hook pre-tool --input payload.json
+python -m agent_actions run .hooks/agent_checks.py --harness claude --hook pre-tool --input payload.json
 ```
 
-Take the payload from an `io.json` entry. This is also how you build a new case
-folder from a real session.
+Take the payload from the `stdin` of an `io.json` entry. The troubleshooting page
+of the `agent-actions-setup` skill lists the common errors.

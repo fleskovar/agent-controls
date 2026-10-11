@@ -221,5 +221,7 @@ silence.
 
 - [Included processes](processes.md), with every parameter.
 - [Architecture](architecture.md), for the reason behind each design decision.
-- `agent_actions skills --dest .claude/skills` copies a skill that teaches an AI
-  agent to write processes for this framework.
+- `python -m agent_actions hcm init`, then `hcm install agent-actions -t claude-code`,
+  installs the skills that teach an AI agent to set up Agent Actions, to configure
+  checks for a project of any language, and to write processes. The
+  [README](../README.md#agent-skills) has the details.

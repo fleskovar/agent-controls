@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 import os
 import time
-from collections.abc import Iterator, Mapping
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, cast
 
 from agent_actions.errors import StateError
 
@@ -33,7 +33,7 @@ def read_json(path: Path) -> dict[str, Any]:
             ) from error
     if not isinstance(document, dict):
         raise StateError(f"'{path}' must contain a JSON object.")
-    return document
+    return cast("dict[str, Any]", document)
 
 
 def write_json(path: Path, document: Mapping[str, Any]) -> None:
@@ -50,7 +50,7 @@ def file_lock(
     path: Path,
     wait_seconds: float = LOCK_WAIT_SECONDS,
     stale_seconds: float = STALE_LOCK_SECONDS,
-) -> Iterator[None]:
+) -> Generator[None, None, None]:
     """Hold an exclusive lock file for the duration of the block.
 
     ponytail: a polling lock file with a stale-age cutoff. A holder that runs longer

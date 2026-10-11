@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from pathlib import PurePosixPath
-from typing import Any, Final
+from typing import Any, Final, cast
 
 from agent_actions.harnesses.base import (
     Shell,
@@ -78,7 +78,9 @@ def _field(payload: Mapping[str, Any], camel: str, snake: str) -> Any:
 
 def _tool_output(result: Any) -> str | None:
     return (
-        as_text(result.get("textResultForLlm")) if isinstance(result, Mapping) else as_text(result)
+        as_text(cast("Mapping[str, Any]", result).get("textResultForLlm"))
+        if isinstance(result, Mapping)
+        else as_text(result)
     )
 
 

@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import PurePosixPath
-from typing import Any, Final, Protocol
+from typing import Any, Final, Protocol, cast
 
 from agent_actions.model import (
     Capability,
@@ -120,15 +120,15 @@ def find_paths(value: Any, keys: frozenset[str]) -> tuple[str, ...]:
 
 def _collect_paths(value: Any, keys: frozenset[str], found: list[str]) -> None:
     if isinstance(value, Mapping):
-        for key, item in value.items():
+        for key, item in cast("Mapping[object, object]", value).items():
             if key in keys and isinstance(item, str):
                 found.append(item)
             elif key in keys and isinstance(item, list):
-                found.extend(path for path in item if isinstance(path, str))
+                found.extend(path for path in cast("list[object]", item) if isinstance(path, str))
             else:
                 _collect_paths(item, keys, found)
     elif isinstance(value, list):
-        for item in value:
+        for item in cast("list[object]", value):
             _collect_paths(item, keys, found)
 
 
@@ -140,7 +140,9 @@ def as_mapping(value: Any) -> Mapping[str, Any]:
             decoded = json.loads(value)
         except json.JSONDecodeError:
             decoded = {"value": value}
-    return decoded if isinstance(decoded, Mapping) else {"value": decoded}
+    return (
+        cast("Mapping[str, Any]", decoded) if isinstance(decoded, Mapping) else {"value": decoded}
+    )
 
 
 def as_text(value: Any) -> str | None:
