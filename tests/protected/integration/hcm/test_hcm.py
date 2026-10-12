@@ -24,7 +24,9 @@ from agent_actions.model import Harness, Hook
 from agent_actions.process import Process
 from agent_actions.runtime import load_runner
 
-REPO = Path(__file__).resolve().parents[3]
+REPO = next(
+    folder for folder in Path(__file__).resolve().parents if (folder / "pyproject.toml").is_file()
+)
 SKILLS = BUNDLE_DIR / "skills"
 ASSETS = SKILLS / "agent-actions-guardrails" / "assets"
 TEMPLATES = sorted(ASSETS.glob("*_checks.py"))

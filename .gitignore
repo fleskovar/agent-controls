@@ -3,6 +3,9 @@
 # light-plan board (tracked as its own git repo)
 .lpm/
 .claude
+# A hook case needs this file as an input. Un-ignore the folder: git cannot
+# un-ignore a file in a folder that it ignores.
+!/tests/protected/cases/install-claude-keeps-existing-settings/inputs/project/.claude
 # Python
 .venv/
 __pycache__/

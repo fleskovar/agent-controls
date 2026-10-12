@@ -82,7 +82,8 @@ accept the new value at once.
 
 ## 4. Test it
 
-Copy `tests/protected/unit/harnesses/test_copilot_cli_adapter.py` and cover four things:
+Copy the folder `tests/protected/unit/harnesses/copilot_cli_adapter/`, change the name
+of the folder and of its test file, and cover four things:
 
 1. **parse**: one payload per interesting shape. Assert the tool kind, the paths
    and the identity fields.
