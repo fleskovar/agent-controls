@@ -78,16 +78,23 @@ def _run_recorded(
     lines: tuple[str, ...] = ()
     with file_lock(agent_dir / LOCK_FILE):
         try:
-            context = load_runner(runner, adapter, hook, event)
+            project, session = store.flag_files(agent_dir)
+            context = load_runner(runner, adapter, hook, event, project.flags, session.flags)
             step = execute(
                 context.active(), event, adapter.capabilities[hook], store.saved_states(agent_dir)
             )
+            changed = {"project": project.save(), "session": session.save()}
         except AgentActionsError as error:
             response = _failure(str(error))
             records, lines = (), (f"[agent_actions] ERROR: {error}",)
         else:
             response = Response(stdout=adapter.render(hook, step.result))
-            records, lines = step.records, step.log_lines
+            records = step.records
+            lines = step.log_lines + tuple(
+                f"[agent_actions] changed {scope} flags: {', '.join(names)}"
+                for scope, names in changed.items()
+                if names
+            )
         store.record(agent_dir, clock(), records, _io_record(event, payload, response), lines)
     return response
 

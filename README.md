@@ -8,9 +8,11 @@ state between calls, and records each call under `.hooks/`.
 - One runner file works in all supported harnesses.
 - A process on a hook that cannot deliver its result fails loudly, not silently.
 - Each process can declare state. The framework restores and records it.
+- Flags keep state between processes and between sessions. A `when` condition
+  starts a process only when a flag, or a change in the work tree, asks for it.
 - Included processes: path guards, shell guard, required tests and commands,
   loop guard, post-edit check, revert of protected files, context injection,
-  tool call budget.
+  tool call budget, flags and git snapshots.
 - One runtime dependency: GitPython. Python 3.11 or later.
 
 ## Quick start
@@ -93,8 +95,10 @@ class NoTodoInFinalAnswer(aa.StopProcess):
 
 ```text
 .hooks/
+    flags.json                           flags for all sessions (context.flags)
     20260915T100000000_3f1c9a2e/        <UTC timestamp>_<short session id>
         session.json
+        flags.json                       flags for this session (context.session_flags)
         main-agent/
             state.json                   state, inputs and outputs per step and process
             io.json                      raw stdin, stdout and exit code per step
@@ -153,6 +157,8 @@ the package version. Change the two versions together. When hcm is installed,
 
 - [Tutorial](docs/tutorial.md)
 - [Included processes](docs/processes.md)
+- [Examples](examples/README.md): runner files that use flags, conditions and
+  git snapshots
 - [Architecture and design](docs/architecture.md)
 - [Data model per harness](docs/data-model.md)
 - [Add a harness](docs/adding-a-harness.md)

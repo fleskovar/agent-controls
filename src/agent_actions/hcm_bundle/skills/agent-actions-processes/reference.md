@@ -17,9 +17,13 @@ in each supported harness, unless its section tells you a limit.
 | [`RequireCommand`](#requirecommand) | `stop` | Blocks the stop while a command fails. |
 | [`RequireTests`](#requiretests) | `stop` | `RequireCommand` with pytest. |
 | [`LoopGuard`](#loopguard) | The hooks of its process | Allows a blocked stop after a maximum of blocks. |
+| [`SetFlag`](#setflag) | `session-start` | Sets a flag for a later hook call or a later session. |
 
 Each process accepts `name=""`. Two processes of one class in one runner file
 need two names.
+
+`context.add(process, when=condition)` runs a process only when the condition is
+true. Refer to [Flags and conditions](#flags-and-conditions).
 
 ## Path patterns
 
@@ -231,6 +235,141 @@ context.add(LoopGuard(RequireCommand(["dotnet", "test"], name="tests"), max_bloc
 
 The last block tells the agent to report, at its next stop, that the approach
 needs a review. The name of the guard is `LoopGuard(<name of the process>)`.
+
+## Flags and conditions
+
+A flag is a named JSON value that processes share. The framework keeps it in a
+file, loads it before the runner file, and writes each change after the hook call.
+
+| Dict | File | Lifetime |
+| --- | --- | --- |
+| `context.flags` | `.hooks/flags.json` | All sessions of the project. |
+| `context.session_flags` | `.hooks/<session>/flags.json` | One session. The main agent and its subagents share it. |
+
+The two are plain dicts. Read and change them in a process or in a condition.
+
+```python
+context.add(process, when=condition)
+```
+
+`condition` is a function of the hook event. The process runs only when the
+condition returns a true value.
+
+```python
+flags = context.flags
+context.add(RequireTests(), when=lambda event: flags.get("tests-due"))
+```
+
+- Use `when`, not an `if` around `context.add`. `install` loads the runner file
+  with empty flags. A process that is not added there gets no hook.
+- The framework calls the condition immediately before the process. Thus the
+  condition sees a flag that an earlier process set in the same hook call.
+- A process that does not run gets no record in `state.json`. `log.txt` tells
+  that it was skipped.
+- A condition that raises an exception blocks where the hook can block.
+- A flag is a file. Protect it: `BlockWrites([".hooks/**"])`.
+- When two parallel hook calls change the same flag, the last call wins.
+
+## SetFlag
+
+```python
+SetFlag(flags, flag, value=True, *, on=(Hook.SESSION_START,), keep=False, name="")
+```
+
+Sets a flag when it runs. It never blocks, and it adds no context. Thus it works
+on each hook of each harness.
+
+```python
+context.add(
+    SetFlag(context.flags, "tests-due", on=[aa.Hook.POST_TOOL]),
+    when=lambda event: event.tool.kind is aa.ToolKind.WRITE,
+)
+```
+
+- `flags` is `context.flags` or `context.session_flags`.
+- `value` can be a function of the hook event. The flag gets the result.
+- With `keep=True`, a flag that has a value keeps it. Use it for a baseline: a
+  harness can fire `session-start` again in one session.
+- The default name is `SetFlag(<flag>)`.
+- To delete a flag, use `flags.pop(flag, None)` in a process, or `clear_on_pass`.
+
+## Snapshots of the work tree
+
+```python
+git_snapshot(event) -> dict
+changed_paths(root, snapshot, patterns=()) -> list[str]
+on_changed_paths(flags, patterns=(), *, flag="baseline", command_runner=run_subprocess)
+clear_on_pass(flags, flag, *, command_runner=run_subprocess)
+```
+
+Import the four functions from `agent_actions.processes`. They need a git
+repository with one commit or more, at the project root or above it.
+
+- `git_snapshot` is a value for `SetFlag`. It records the last commit, and a
+  digest of each file that differs from it.
+- `changed_paths` returns the paths whose content changed after a snapshot,
+  relative to the project root. An edited, created, deleted, committed or
+  reverted file is in the list. A file that had uncommitted changes at the
+  snapshot, and that did not change after it, is not.
+- `changed_paths` reads git, not the tool calls. Thus it also finds a change from
+  a shell command. It does not compare a file that git ignores.
+- Without a snapshot (`None`), each uncommitted change is in the list.
+- `on_changed_paths` makes a `command_runner`. It replaces `{paths}` with the
+  changed files that exist. When no file changed, the command does not run, and
+  the process passes.
+- `clear_on_pass` makes a `command_runner` that deletes a flag when the command
+  exits with code 0.
+
+Lint only the files that changed in this session. Run the tests only after a
+change of a source file, also when that change is from an earlier session:
+
+```python
+import agent_actions as aa
+from agent_actions.processes import (
+    LoopGuard,
+    RequireCommand,
+    RequireTests,
+    SetFlag,
+    changed_paths,
+    clear_on_pass,
+    git_snapshot,
+    on_changed_paths,
+)
+
+SOURCES = ["src/**", "tests/**"]
+
+context = aa.get_current_context()
+flags, session = context.flags, context.session_flags
+
+# Session start: keep the state of the work tree as the baseline of this session.
+context.add(SetFlag(session, "baseline", git_snapshot, keep=True))
+
+# Stop: lint only the Python files that changed after the baseline.
+context.add(
+    RequireCommand(
+        ["ruff", "check", "{paths}"],
+        name="lint",
+        command_runner=on_changed_paths(session, ["*.py"]),
+    )
+)
+
+# Stop: a source file changed in this session, thus the tests are due. The flag
+# stays for the later sessions, until the tests pass.
+context.add(
+    SetFlag(flags, "tests-due", on=[aa.Hook.STOP]),
+    when=lambda event: changed_paths(event.root, session.get("baseline"), SOURCES),
+)
+context.add(
+    LoopGuard(RequireTests(command_runner=clear_on_pass(flags, "tests-due"))),
+    when=lambda event: flags.get("tests-due"),
+)
+
+aa.run(context)
+```
+
+In one session, `tests-due` is set again at each stop while a source file differs
+from the baseline. To set the flag when the session ends without a stop, add
+`aa.Hook.POST_TOOL` to `on`. Git then scans the work tree after each tool call.
 
 ## Commands
 

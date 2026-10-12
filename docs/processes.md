@@ -24,6 +24,10 @@ stays closed when a harness reports a path style the framework cannot map.
 | [`RevertWrites`](#revertwrites) | `session-start`, `subagent-start`, `post-tool` | nothing; it reverts changes to protected paths with git |
 | [`AddContext`](#addcontext) | any hook with a context channel | nothing |
 | [`ToolCallBudget`](#toolcallbudget) | `pre-tool` | tool calls after a maximum |
+| [`SetFlag`](#setflag) | any hook | nothing; it sets a flag |
+
+Each process can have a `when` condition. A condition can read a flag from an
+earlier session. Refer to [Flags and conditions](#flags-and-conditions).
 
 ## BlockWrites
 
@@ -256,6 +260,166 @@ context.add(ToolCallBudget(50, kinds=[ToolKind.SHELL], name="shell-budget"))
 ```
 
 The counter is per agent folder, so a subagent has its own budget.
+
+## Flags and conditions
+
+The state of a process belongs to one process and one agent. A **flag** is state
+that processes share. A flag is a named JSON value in a file under `.hooks/`. One
+process sets it on one hook call. A different process, or a condition, reads it on
+a later call.
+
+| Dict | File | Lifetime |
+| --- | --- | --- |
+| `context.flags` | `.hooks/flags.json` | all sessions of the project |
+| `context.session_flags` | `.hooks/<session>/flags.json` | one session; the main agent and its subagents share it |
+
+The two are plain dicts. Read and change them in a process or in a condition. The
+framework loads them before the runner file, and writes each changed flag after
+the hook call.
+
+### when
+
+```python
+context.add(process, when=condition)
+```
+
+`condition` is a function of the hook event. The process runs only when the
+condition returns a true value.
+
+```python
+flags = context.flags
+context.add(RequireTests(), when=lambda event: flags.get("tests-due"))
+context.add(AddContext(RULES), when=lambda event: event.agent_type == "Explore")
+```
+
+- Use `when`, not an `if` around `context.add`. `install` loads the runner file
+  with empty flags to find the hooks. A process that is not added gets no hook.
+- The framework calls the condition immediately before the process. Thus the
+  condition sees a flag that an earlier process set in the same hook call.
+- A process that does not run gets no record in `state.json`, and keeps its
+  state. `log.txt` gets a line that tells that the process was skipped.
+- A condition that raises an exception is a failure of the process. The result
+  is a block where the hook can block (fail closed).
+
+### SetFlag
+
+```python
+SetFlag(flags, flag, value=True, *, on=(Hook.SESSION_START,), keep=False, name="")
+```
+
+Sets a flag when it runs. It never blocks, and it adds no context. Thus it works
+on each hook of each harness.
+
+```python
+context.add(SetFlag(context.flags, "tests-due", on=[Hook.POST_TOOL]),
+            when=lambda event: event.tool.kind is ToolKind.WRITE)
+```
+
+- `flags` is `context.flags` or `context.session_flags`.
+- `value` can be a function of the hook event. The flag gets the result.
+- With `keep=True`, a flag that has a value keeps it. Use it for a baseline: a
+  harness can fire `session-start` again in one session, for example after a
+  compaction.
+- The default name is `SetFlag(<flag>)`.
+
+To delete a flag, use `flags.pop(flag, None)` in your process, or
+[`clear_on_pass`](#on_changed_paths-and-clear_on_pass).
+
+### git_snapshot and changed_paths
+
+```python
+git_snapshot(event) -> dict
+changed_paths(root, snapshot, patterns=()) -> list[str]
+```
+
+`git_snapshot` is a value for `SetFlag`. It records the last commit, and a digest
+of each file that differs from it. `changed_paths` compares the work tree with a
+snapshot, and returns the changed paths relative to the project root.
+
+```python
+session = context.session_flags
+context.add(SetFlag(session, "baseline", git_snapshot, keep=True))
+context.add(RequireTests(),
+            when=lambda event: changed_paths(event.root, session.get("baseline"), ["src/**"]))
+```
+
+- A file is in the list when its content differs from its content at the
+  snapshot: edited, created, deleted, committed with new content, or put back to
+  the committed content.
+- A file that had uncommitted changes at the snapshot, and that did not change
+  after it, is not in the list. Your work from before the session is not the
+  work of the agent.
+- The comparison reads git, not the tool calls. Thus it also finds a change that
+  a shell command made. Files that git ignores are not compared.
+- Without a snapshot (`None`), each uncommitted change is in the list. A hook
+  that has no baseline thus checks more files, not fewer.
+- With `patterns`, only the paths that match are in the list.
+- The two functions need a git repository with one commit or more, at the
+  project root or above it.
+
+### on_changed_paths and clear_on_pass
+
+```python
+on_changed_paths(flags, patterns=(), *, flag="baseline", command_runner=run_subprocess)
+clear_on_pass(flags, flag, *, command_runner=run_subprocess)
+```
+
+The two functions make a `command_runner` for `RequireCommand`, `RequireTests`
+and `RunCommand`.
+
+- `on_changed_paths` replaces `{paths}` in the command with the files that
+  changed after the snapshot in `flags[flag]`. Deleted files are not in
+  `{paths}`. When no file changed, the command does not run, and the process
+  passes.
+- `clear_on_pass` deletes a flag when the command exits with code 0.
+
+### Example: checks that follow the changes
+
+```python
+import agent_actions as aa
+from agent_actions.processes import (
+    LoopGuard, RequireCommand, RequireTests, SetFlag,
+    changed_paths, clear_on_pass, git_snapshot, on_changed_paths,
+)
+
+SOURCES = ["src/**", "tests/**"]
+
+context = aa.get_current_context()
+flags, session = context.flags, context.session_flags
+
+# Session start: keep the state of the work tree as the baseline of this session.
+context.add(SetFlag(session, "baseline", git_snapshot, keep=True))
+
+# Stop: lint only the Python files that changed after the baseline.
+context.add(RequireCommand(["ruff", "check", "{paths}"], name="lint",
+                           command_runner=on_changed_paths(session, ["*.py"])))
+
+# Stop: a source file changed in this session, thus the tests are due. The flag
+# stays for the later sessions, until the tests pass.
+context.add(SetFlag(flags, "tests-due", on=[aa.Hook.STOP]),
+            when=lambda event: changed_paths(event.root, session.get("baseline"), SOURCES))
+context.add(LoopGuard(RequireTests(command_runner=clear_on_pass(flags, "tests-due"))),
+            when=lambda event: flags.get("tests-due"))
+
+aa.run(context)
+```
+
+A session that changes only documentation runs no tests. A session that ends
+while the tests fail leaves `tests-due` in `.hooks/flags.json`. The next session
+cannot stop until the tests pass, also when it changes no source file.
+
+In one session, `tests-due` is set again at each stop while a source file
+differs from the baseline. To set the flag when the session ends without a stop,
+add `aa.Hook.POST_TOOL` to `on`. Git then scans the work tree after each tool
+call.
+
+### Limits
+
+- A flag is a file. An agent that can write in `.hooks/` can change a flag. Add
+  `BlockWrites([".hooks/**"])`.
+- Two parallel hook calls can change two different flags. When they change the
+  same flag, the last call wins.
+- The framework does not delete flags. Delete `.hooks/flags.json` to start again.
 
 ## The command runner
 

@@ -30,6 +30,9 @@ composition, not new code.
 | "Show it the failed tests at the start" | `RunCommand("dotnet test", on=[Hook.SESSION_START])` |
 | "Tell it the project rules at the start" | `AddContext("...")` |
 | "Cap the number of tool calls" | `ToolCallBudget(200)` |
+| "Run the check only when X" | `context.add(process, when=lambda event: ...)` |
+| "Remember X for a later session" | `SetFlag(context.flags, "x")`, then `when=lambda event: context.flags.get("x")` |
+| "Lint only the files that changed in this session" | `SetFlag(context.session_flags, "baseline", git_snapshot, keep=True)` and `on_changed_paths(...)` |
 
 All of them come from `agent_actions.processes`. The parameters of each one are
 in [the process reference](./reference.md).
@@ -55,6 +58,8 @@ Rules for the runner file:
 - Do not branch on the harness. If you need harness-specific tool names, use
   `aa.tools_for(context.harness)`.
 - Give each process a different `name=` when you add two of the same class.
+- Do not put an `if` around `context.add`. Use `context.add(process, when=...)`,
+  so that `install` finds the hook of the process.
 
 Install the hooks after each change of the process list:
 
@@ -114,6 +119,10 @@ Hard rules:
 - **State lives in `__state__`.** The attributes that `__state__` creates are the
   state. The framework restores them before `run` and records them after. Values
   must be JSON types. Attributes from `__init__` are configuration, not state.
+- **Shared state lives in a flag.** The state belongs to one process and one
+  agent. For a value that a different process or a later session reads, take
+  `context.flags` or `context.session_flags` as a parameter, and change that
+  dict in `run`. A test gives a plain dict.
 - **Do not read the clock, the environment or files at import time.** Take them
   as parameters. The case tests then stay deterministic.
 - **Inject anything that runs a command.** Take a `command_runner` parameter with
@@ -170,10 +179,13 @@ restore it.
 ## 6. Check the recorded session when a hook behaves oddly
 
 ```text
+.hooks/flags.json                                     the flags of the project
+.hooks/<timestamp>_<short-session-id>/flags.json      the flags of one session
 .hooks/<timestamp>_<short-session-id>/main-agent/
     state.json   state, inputs and outputs per step and process
     io.json      raw stdin, stdout and exit code per step
-    log.txt      the aa.log lines and one summary line per result
+    log.txt      the aa.log lines, one summary line per result, each skipped
+                 process, and each changed flag
 ```
 
 Replay a recorded call, with no agent:

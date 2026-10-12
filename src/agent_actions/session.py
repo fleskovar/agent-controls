@@ -1,12 +1,14 @@
-"""Session folders under `.hooks/`: naming, lookup and step records.
+"""Session folders under `.hooks/`: naming, lookup, step records and flags.
 
-.hooks/<timestamp>_<short-session-id>/session.json
+.hooks/flags.json
+.hooks/<timestamp>_<short-session-id>/{session.json, flags.json}
 .hooks/<timestamp>_<short-session-id>/main-agent/{state.json, io.json, log.txt}
 .hooks/<timestamp>_<short-session-id>/<agent-type>_<timestamp>/{agent.json, ...}
 """
 
 from __future__ import annotations
 
+import copy
 import re
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
@@ -15,6 +17,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from agent_actions.engine import ProcessRecord
+from agent_actions.errors import StateError
 from agent_actions.model import HookInput
 from agent_actions.storage import file_lock, read_json, write_json
 
@@ -25,6 +28,7 @@ AGENT_FILE: Final = "agent.json"
 STATE_FILE: Final = "state.json"
 IO_FILE: Final = "io.json"
 LOG_FILE: Final = "log.txt"
+FLAGS_FILE: Final = "flags.json"
 LOCK_FILE: Final = ".lock"
 SHORT_ID_LENGTH: Final = 8
 UNKNOWN_SESSION: Final = "unknown"
@@ -68,6 +72,51 @@ def latest_states(
     }
 
 
+_NO_FLAG: Final = object()
+
+
+class FlagFile:
+    """One `flags.json`: named JSON values that processes share between hook calls.
+
+    `flags` is a plain dict. A hook call changes it, then `save` writes the changes.
+    """
+
+    def __init__(self, path: Path, lock: Path) -> None:
+        self._path = path
+        self._lock = lock
+        self._loaded = read_json(path)
+        self.flags: dict[str, Any] = copy.deepcopy(self._loaded)
+
+    def save(self) -> list[str]:
+        """Write the flags that changed after the load, and return their names.
+
+        Only these flags are written, into the file as it is now. Thus a parallel
+        hook call that changed a different flag loses nothing.
+
+        ponytail: the last writer of one flag wins. Hold the lock for the whole hook
+        call if two agents must count in one flag.
+        """
+        names = sorted(
+            name
+            for name in self._loaded.keys() | self.flags.keys()
+            if self._loaded.get(name, _NO_FLAG) != self.flags.get(name, _NO_FLAG)
+        )
+        if names:
+            with file_lock(self._lock):
+                document = read_json(self._path)
+                for name in names:
+                    document.pop(name, None)
+                document.update({name: self.flags[name] for name in names if name in self.flags})
+                try:
+                    write_json(self._path, document)
+                except (TypeError, ValueError) as error:
+                    raise StateError(
+                        f"A flag of {', '.join(names)} in '{self._path}' is not "
+                        f"JSON-serializable: {error}"
+                    ) from error
+        return names
+
+
 @dataclass(frozen=True, slots=True)
 class SessionSummary:
     folder: str
@@ -108,6 +157,14 @@ class SessionStore:
                     lambda stamp: f"{agent_type}_{stamp}",
                 )
         return folder
+
+    def flag_files(self, agent_dir: Path) -> tuple[FlagFile, FlagFile]:
+        """The flags of the project, and the flags of the session of an agent folder."""
+        lock = self.hooks_dir / LOCK_FILE
+        return (
+            FlagFile(self.hooks_dir / FLAGS_FILE, lock),
+            FlagFile(agent_dir.parent / FLAGS_FILE, lock),
+        )
 
     def saved_states(self, agent_dir: Path) -> dict[str, Mapping[str, Any]]:
         return latest_states(read_json(agent_dir / STATE_FILE))

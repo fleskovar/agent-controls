@@ -55,7 +55,12 @@ def execute(
     capability: Capability,
     saved_states: Mapping[str, Mapping[str, Any]],
 ) -> Step:
-    """Restore state, run each process, check its result, and combine the results."""
+    """Restore state, run each process, check its result, and combine the results.
+
+    A process whose `when` condition is false does not run, and gets no record. The
+    condition is read immediately before the process. Thus it sees a flag that an
+    earlier process set in the same call.
+    """
     lines: list[str] = []
     named: list[NamedResult] = []
     records: list[ProcessRecord] = []
@@ -64,12 +69,15 @@ def execute(
         for process in processes:
             process.load_state(saved_states.get(process.label, {}))
             result = _run_guarded(process, event, capability, lines)
-            check_result(process, result, event, capability)
-            lines.append(_summary(process, result))
-            named.append(NamedResult(process.label, result))
-            records.append(
-                ProcessRecord(process.label, process.dump_state(), inputs, result.to_record())
-            )
+            if result is None:
+                lines.append(f"[{process.label}] skipped: its `when` condition is false")
+            else:
+                check_result(process, result, event, capability)
+                lines.append(_summary(process, result))
+                named.append(NamedResult(process.label, result))
+                records.append(
+                    ProcessRecord(process.label, process.dump_state(), inputs, result.to_record())
+                )
     return Step(combine(named), tuple(records), tuple(lines))
 
 
@@ -93,11 +101,17 @@ def check_result(
 
 def _run_guarded(
     process: Process, event: HookInput, capability: Capability, lines: list[str]
-) -> ProcessResult:
-    """Run one process. An exception becomes a block where a block is possible (fail closed)."""
+) -> ProcessResult | None:
+    """Run one process, or return None when its `when` condition is false.
+
+    An exception, also from the condition, becomes a block where a block is possible
+    (fail closed).
+    """
+    result: ProcessResult | None = None
     try:
         with log_source(process.label):
-            result = process.run(event)
+            if process.when is None or process.when(event):
+                result = process.run(event)
     except AgentActionsError:
         raise
     except Exception as error:

@@ -13,11 +13,12 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from agent_actions.errors import AgentActionsError, IncompatibleProcessError, RunnerFileError
 from agent_actions.harnesses.base import HarnessAdapter, ToolCatalog
 from agent_actions.model import Harness, Hook, HookInput
-from agent_actions.process import Process
+from agent_actions.process import Condition, Process
 
 DEFAULT_LOG_SOURCE = "runner"
 
@@ -26,12 +27,26 @@ class Context:
     """The processes of one runner file, and the hook call that they run for.
 
     During `agent_actions install`, `hook` and `event` are None.
+
+    `flags` holds the flags of the project, and `session_flags` the flags of the
+    current session. A flag is a named JSON value. A process or a `when` condition
+    reads and changes these dicts, and the framework saves each change after the
+    hook call. During `install`, the two dicts are empty.
     """
 
-    def __init__(self, adapter: HarnessAdapter, hook: Hook | None, event: HookInput | None) -> None:
+    def __init__(
+        self,
+        adapter: HarnessAdapter,
+        hook: Hook | None,
+        event: HookInput | None,
+        flags: dict[str, Any] | None = None,
+        session_flags: dict[str, Any] | None = None,
+    ) -> None:
         self.adapter = adapter
         self.hook = hook
         self.event = event
+        self.flags: dict[str, Any] = {} if flags is None else flags
+        self.session_flags: dict[str, Any] = {} if session_flags is None else session_flags
         self._processes: list[Process] = []
 
     @property
@@ -46,8 +61,12 @@ class Context:
     def processes(self) -> tuple[Process, ...]:
         return tuple(self._processes)
 
-    def add(self, process: Process) -> Context:
-        """Add a process. Raises IncompatibleProcessError when it cannot work in this harness."""
+    def add(self, process: Process, *, when: Condition | None = None) -> Context:
+        """Add a process. Raises IncompatibleProcessError when it cannot work in this harness.
+
+        With `when`, the process runs only when `when(event)` is true. Use it, not an
+        `if` around `add`: `install` must see the process to register its hook.
+        """
         problems = compatibility_problems(process, self.adapter)
         if any(existing.label == process.label for existing in self._processes):
             problems.append(f"another process is named '{process.label}'; set a different `name`")
@@ -57,6 +76,8 @@ class Context:
                 + "; ".join(problems)
                 + "."
             )
+        if when is not None:
+            process.when = when
         self._processes.append(process)
         return self
 
@@ -99,6 +120,8 @@ class _Invocation:
     adapter: HarnessAdapter
     hook: Hook | None
     event: HookInput | None
+    flags: dict[str, Any] | None = None
+    session_flags: dict[str, Any] | None = None
     context: Context | None = None
     submitted: bool = False
 
@@ -112,7 +135,13 @@ def get_current_context() -> Context:
     """The context of the active hook call. The same object on every call."""
     invocation = _active_invocation()
     if invocation.context is None:
-        invocation.context = Context(invocation.adapter, invocation.hook, invocation.event)
+        invocation.context = Context(
+            invocation.adapter,
+            invocation.hook,
+            invocation.event,
+            invocation.flags,
+            invocation.session_flags,
+        )
     return invocation.context
 
 
@@ -162,12 +191,17 @@ def _active_invocation() -> _Invocation:
 
 
 def load_runner(
-    path: Path, adapter: HarnessAdapter, hook: Hook | None, event: HookInput | None
+    path: Path,
+    adapter: HarnessAdapter,
+    hook: Hook | None,
+    event: HookInput | None,
+    flags: dict[str, Any] | None = None,
+    session_flags: dict[str, Any] | None = None,
 ) -> Context:
     """Execute a runner file and return the context that it handed to `run`."""
     if not path.is_file():
         raise RunnerFileError(f"The runner file '{path}' does not exist.")
-    invocation = _Invocation(adapter, hook, event)
+    invocation = _Invocation(adapter, hook, event, flags, session_flags)
     folder = str(path.resolve().parent)
     token = _INVOCATION.set(invocation)
     sys.path.insert(0, folder)

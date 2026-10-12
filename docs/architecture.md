@@ -19,7 +19,7 @@ hard to do by hand:
    times did the agent try this?" is not answerable without files.
 
 Agent Actions answers the three with: adapters, capability checks, and a session
-store.
+store. The store also holds flags, which are the memory between sessions.
 
 ## 2. Layers
 
@@ -51,7 +51,7 @@ processes/*                  the included guardrails, written against model + pr
 | `harnesses/claude.py`, `vscode.py`, `copilot_cli.py` | All names and shapes of one harness. | none |
 | `runtime.py` | `get_current_context`, `Context.add` and its compatibility checks, `run`, `log`, and loading the runner file. | runs the runner file |
 | `engine.py` | Run the active processes, guard their exceptions, check their results, combine them. | none of its own |
-| `session.py` | Folder names, folder lookup, and the step record. | files |
+| `session.py` | Folder names, folder lookup, the step record, and the flag files. | files |
 | `storage.py` | Atomic JSON writes and lock files. | files |
 | `app.py` | The two use cases, wired together. | files |
 | `cli.py` | Arguments, stdin, stdout, exit code, interactive choice. | process I/O |
@@ -78,11 +78,14 @@ sequenceDiagram
     D-->>A: HookInput (neutral)
     A->>S: agent_dir(event, now)
     S-->>A: .hooks/<session>/<agent>/ (lock held)
-    A->>A: load_runner(runner) -> Context
+    A->>S: flag_files(agent folder)
+    S-->>A: project flags, session flags
+    A->>A: load_runner(runner, flags) -> Context
     A->>E: execute(active processes, event, capability, saved states)
-    E->>P: load_state, run, dump_state
+    E->>P: when, load_state, run, dump_state
     P-->>E: ProcessResult each
     E-->>A: combined result, records, log lines
+    A->>S: save the changed flags
     A->>D: render(hook, result)
     D-->>A: stdout document or None
     A->>S: record(step) in state.json, io.json, log.txt
@@ -171,6 +174,36 @@ Copilot CLI payloads carry no event name, and the three harnesses can read each
 other's configuration files. The generated command therefore states both, and the
 adapter never guesses from the payload shape.
 
+### 4.9 Flags are plain dicts, and conditions run late
+
+Process state (4.4) belongs to one process in one agent folder. Two needs go
+beyond it: a value that a different process reads, and a value that a later
+session reads. A flag answers the two. `Context.flags` is the content of
+`.hooks/flags.json`, and `Context.session_flags` is the content of `flags.json`
+in the session folder.
+
+The runner file gets the flags as plain dicts, and gives them to the processes
+that use them. There is no ambient flag API. Thus a process stays testable with
+a dict, and the runner file shows which process touches which flags.
+
+`FlagFile.save` writes only the keys that the hook call changed, into the file
+as it is at that moment, under the lock of `.hooks/`. The lock is short. A hook
+call can run a test suite for minutes, and a lock for the whole call would stop
+each other session for that time. The cost is last-writer-wins for one flag,
+marked with a `ponytail:` comment.
+
+A condition belongs to `Context.add`, not to an `if` in the runner file. The
+runner file is also the source of the hook list (4.7), and `install` loads it
+with empty flags. An `if` would drop the process, and its hook, from the
+configuration. The engine evaluates `when` immediately before the process, so a
+flag that one process sets can start the next process in the same hook call.
+
+A snapshot of the work tree is a flag value like each other. `git_snapshot`
+records the commit and a digest of each file that differs from it.
+`changed_paths` builds the same record relative to the recorded commit, and
+compares the two. This also finds a change that was committed after the
+snapshot, and it does not report the uncommitted work from before it.
+
 ## 5. Extension points
 
 | To add | Do this |
@@ -189,3 +222,5 @@ adapter never guesses from the payload shape.
 - No process scheduling or concurrency of its own. One hook call runs its
   processes in the order they were added.
 - No clean-up of `.hooks/`. Delete the folder, or add it to `.gitignore`.
+- No history of a flag. `flags.json` holds the current values, and `log.txt`
+  names the flags that each hook call changed.

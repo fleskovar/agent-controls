@@ -30,6 +30,8 @@ that code:
 | Verdict | The decision of a process: `allow`, `block` or `ask`. |
 | Reasons | Text that tells the agent why a process blocked, asked or allowed. |
 | Context | Text that the framework adds to the agent context, when the hook has a channel for it. |
+| Flag | A named JSON value that processes share, for one session or for all sessions of the project. |
+| Condition | A function of the hook event. It decides whether a process runs on a hook call. |
 
 ## 3. Functional requirements
 
@@ -116,8 +118,10 @@ that code:
 
   ```text
   .hooks/
+      flags.json
       <timestamp>_<short-session-id>/
           session.json
+          flags.json
           main-agent/
               state.json  io.json  log.txt
           <agent-type>_<timestamp>/
@@ -192,6 +196,34 @@ that code:
   input of its command. The exit code and the output are the answer of the
   command.
 
+### 3.9 Flags and conditions
+
+- **R48.** A flag is a named JSON value. Project flags are in `.hooks/flags.json`,
+  and all sessions share them. Session flags are in `flags.json` in the session
+  folder, and the agents of that session share them.
+- **R49.** The framework loads the flags before the runner file. The runner
+  file gets them as the dicts `context.flags` and `context.session_flags`.
+- **R50.** After a hook call, the framework writes only the flags that the call
+  changed. A parallel call that changed a different flag loses nothing.
+- **R51.** A flag value that is not JSON-serializable fails the run with exit
+  code 1, and the flag file stays unchanged.
+- **R52.** `context.add(process, when=condition)` gives a process a condition.
+  The process runs only when the condition returns a true value for the event.
+- **R53.** The framework evaluates a condition immediately before its process,
+  in the order of the processes. `install` evaluates no condition, so the hook
+  of each process is registered.
+- **R54.** A process that does not run has no record in `state.json`, and
+  `log.txt` has a line for it. A condition that raises is handled as in R16.
+- **R55.** `log.txt` names each flag that a hook call changed.
+- **R56.** `SetFlag(flags, flag, value)` sets a flag on the hooks in `on`. The
+  value can be a function of the event. With `keep`, it does not replace a value.
+- **R57.** `git_snapshot` records the state of the git work tree.
+  `changed_paths` returns the paths whose content changed after a snapshot.
+  Without a snapshot, it returns each uncommitted change.
+- **R58.** `on_changed_paths` gives a command only the files that changed after
+  a snapshot, and passes when there are none. `clear_on_pass` deletes a flag
+  when a command passes.
+
 ## 4. Refinements to task.md
 
 | task.md | Refined | Reason |
@@ -211,8 +243,8 @@ that code:
 ## 5. Non-functional requirements
 
 - **N1.** The runtime has one third-party dependency, GitPython. Only
-  `RevertWrites` imports it. All other code uses the Python 3.11+ standard
-  library only.
+  `RevertWrites` and the snapshot functions (R57) import it. All other code uses
+  the Python 3.11+ standard library only.
 - **N2.** The framework works on Windows, Linux and macOS.
 - **N3.** A runner file that contains only path guards completes a `pre-tool`
   call in less than 300 ms on a developer machine.
@@ -237,3 +269,5 @@ that code:
   are the names that the documentation gave on 2026-09-15.
 - The shell command check in the path guards is a substring match. A command
   that builds a path at run time is not detected.
+- A flag is a file under `.hooks/`. An agent that can write there can change a
+  flag. When two parallel hook calls change the same flag, the last call wins.

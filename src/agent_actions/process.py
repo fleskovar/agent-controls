@@ -6,13 +6,16 @@ on the wrong hook fails at install time instead of failing silently in the agent
 
 State: the attributes that `__state__` creates are the state variables. The
 framework restores their last recorded values before `run` and records them after.
+
+Condition: `Context.add(process, when=...)` sets `when`. The framework calls it
+with the hook event before `run`, and skips the process when the answer is false.
 """
 
 from __future__ import annotations
 
 import json
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any, ClassVar, Final
 
 from agent_actions.errors import StateError
@@ -21,6 +24,8 @@ from agent_actions.model import Hook, HookInput, ProcessResult, Verdict
 ALLOW_ONLY: Final = frozenset({Verdict.ALLOW})
 ALLOW_OR_BLOCK: Final = frozenset({Verdict.ALLOW, Verdict.BLOCK})
 ANY_VERDICT: Final = frozenset(Verdict)
+
+Condition = Callable[[HookInput], object]
 
 _STATE_NAMES_ATTRIBUTE: Final = "_state_names"
 
@@ -34,6 +39,7 @@ class Process(ABC):
 
     name: str = ""
     on: tuple[Hook, ...] = ()
+    when: Condition | None = None
 
     @abstractmethod
     def run(self, event: HookInput) -> ProcessResult:
