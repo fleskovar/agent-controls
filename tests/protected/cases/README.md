@@ -3,7 +3,7 @@
 Each folder here is **one behaviour**, written so that a person can read the
 inputs, apply the rules in its `README.md`, and arrive at the expected outputs
 without running anything. The cases are the readable layer of the suite, on top
-of the unit tests in `tests/unit/`; they are also the documentation that turns
+of the unit tests in `tests/protected/unit/`; they are also the documentation that turns
 the build red when it goes stale.
 
 Run them all, or one, or one under a debugger:
@@ -12,7 +12,7 @@ Run them all, or one, or one under a debugger:
 make test-cases
 make test-case  CASE=claude-edit-of-protected-test-is-denied
 make debug-case CASE=claude-edit-of-protected-test-is-denied
-python tests/cases/case_runner.py claude-edit-of-protected-test-is-denied
+python tests/protected/cases/case_runner.py claude-edit-of-protected-test-is-denied
 ```
 
 ## The cases

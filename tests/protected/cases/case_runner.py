@@ -175,7 +175,7 @@ def _without_absolute_paths(documents: Mapping[str, Any], project: Path) -> dict
 
 if __name__ == "__main__":
     # Debug entry point, with no pytest frames on the stack:
-    #     python tests/cases/case_runner.py <case-name>
+    #     python tests/protected/cases/case_runner.py <case-name>
     # Put a breakpoint on the `run_case` line below and step in.
     # Add --write to rewrite the baselines of that case.
     case_name = sys.argv[1] if len(sys.argv) > 1 else case_dirs()[0].name

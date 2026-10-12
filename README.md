@@ -173,8 +173,8 @@ make debug-case CASE=claude-edit-of-protected-test-is-denied
 make debug-test K=test_most_restrictive_verdict_wins
 ```
 
-Each folder in `tests/cases/` is one behaviour: `inputs/`, `outputs/` and a
-`README.md` walkthrough. The [case index](tests/cases/README.md) lists all of
+Each folder in `tests/protected/cases/` is one behaviour: `inputs/`, `outputs/` and a
+`README.md` walkthrough. The [case index](tests/protected/cases/README.md) lists all of
 them and what each one pins. To add a case, add a folder. In VS Code, the launch
 configuration "Debug one hook case" runs one case under the debugger.
 

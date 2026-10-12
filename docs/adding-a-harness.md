@@ -82,7 +82,7 @@ accept the new value at once.
 
 ## 4. Test it
 
-Copy `tests/unit/harnesses/test_copilot_cli_adapter.py` and cover four things:
+Copy `tests/protected/unit/harnesses/test_copilot_cli_adapter.py` and cover four things:
 
 1. **parse**: one payload per interesting shape. Assert the tool kind, the paths
    and the identity fields.
@@ -93,7 +93,7 @@ Copy `tests/unit/harnesses/test_copilot_cli_adapter.py` and cover four things:
 4. **merge_config**: one existing foreign entry, one entry of the same runner
    file. Assert that the foreign entry survives and the own entry is replaced.
 
-Then add one case folder under `tests/cases/` that runs a real guardrail end to
+Then add one case folder under `tests/protected/cases/` that runs a real guardrail end to
 end in the new harness. `copilot-cli-read-of-env-file-is-denied` is the template.
 
 ## 5. Check it against the real harness
