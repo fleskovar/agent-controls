@@ -1,6 +1,6 @@
 ---
 name: agent-actions-processes
-description: Write and test a new Agent Actions process - a Python class that runs on an AI agent lifecycle hook in Claude Code, VS Code or Copilot CLI - and look up the parameters of the included processes. Use when the included processes cannot do what a project needs, when a custom guardrail needs state or its own decision logic, or when you need the exact signature of an included process.
+description: Write and test a new Agent Actions process - a Python class that runs on an AI agent lifecycle hook in Claude Code, VS Code or Copilot CLI - and look up the parameters of the included processes. Use when the included processes cannot do what a project needs, when a custom guardrail needs state or its own decision logic, when a process must share state with a different process or a later session, or when you need the exact signature of an included process.
 ---
 
 # Author an Agent Actions process
@@ -31,11 +31,16 @@ composition, not new code.
 | "Tell it the project rules at the start" | `AddContext("...")` |
 | "Cap the number of tool calls" | `ToolCallBudget(200)` |
 | "Run the check only when X" | `context.add(process, when=lambda event: ...)` |
-| "Remember X for a later session" | `SetFlag(context.flags, "x")`, then `when=lambda event: context.flags.get("x")` |
+| "Remember X for a later session" | `SetFlag(context.flags, "x")`, then `when=lambda _: context.flags.get("x")` |
 | "Lint only the files that changed in this session" | `SetFlag(context.session_flags, "baseline", git_snapshot, keep=True)` and `on_changed_paths(...)` |
 
 All of them come from `agent_actions.processes`. The parameters of each one are
 in [the process reference](./reference.md).
+
+The last three rows make a check depend on the context. The
+`agent-actions-guardrails` skill has a complete runner file for each such
+pattern, on its page about flags and conditions. Read that page before you write
+a class for one of them.
 
 ## 2. The runner file
 
@@ -133,7 +138,96 @@ Useful fields of `event` (`HookInput`): `harness`, `hook`, `session_id`, `cwd`,
 `root`, `agent_id`, `agent_type`, `prompt`, `last_message`, `stop_hook_active`,
 `raw`, and `tool` with `name`, `kind`, `arguments`, `paths`, `command`, `output`.
 
-## 4. Know what the harness can deliver
+## 4. Share state between processes and sessions
+
+`__state__` belongs to one process in one agent. For each other need, use a flag
+or a condition.
+
+| Need | Use |
+| --- | --- |
+| A count or a memory of one process | `__state__` |
+| A value that a different process reads in the same session | `context.session_flags` |
+| A value that a later session reads | `context.flags` |
+| Run an included process only in some conditions | `context.add(process, when=...)`, and no new class |
+| The files that changed after a moment | `git_snapshot` in a flag, then `changed_paths` |
+
+Rules for a process that uses flags:
+
+- **Take the flag dict as a parameter.** The runner file gives `context.flags` or
+  `context.session_flags`. A test gives a plain dict.
+- **Read a flag with `.get`.** A flag is missing before its first write.
+- **Change the dict in `run`.** The framework saves each changed flag after the
+  hook call. Values must be JSON types.
+- **Do not write a class only to skip a process.** That is the job of `when`.
+- **Write a condition as a function of the event, with a name.** Then a test can
+  call it.
+
+This stop process reads a snapshot from a flag. It blocks the stop when one
+group of files changed after the snapshot, and its paired group did not:
+
+```python
+from collections.abc import Mapping, Sequence
+from typing import Any
+
+import agent_actions as aa
+from agent_actions.processes import LoopGuard, SetFlag, changed_paths, git_snapshot
+
+
+class RequirePairedChange(aa.StopProcess):
+    """Blocks the stop when `changed` files changed after the baseline and no `paired` file did."""
+
+    def __init__(
+        self,
+        flags: Mapping[str, Any],
+        changed: Sequence[str],
+        paired: Sequence[str],
+        reason: str,
+        *,
+        name: str,
+    ) -> None:
+        self.flags = flags
+        self.changed = changed
+        self.paired = paired
+        self.reason = reason
+        self.name = name
+
+    def run(self, event: aa.HookInput) -> aa.ProcessResult:
+        baseline = self.flags.get("baseline")
+        trigger = changed_paths(event.root, baseline, self.changed)
+        if not trigger or changed_paths(event.root, baseline, self.paired):
+            return aa.allow()
+        return aa.block(
+            f"You changed {', '.join(trigger)}, but no file in {', '.join(self.paired)}. "
+            f"{self.reason}"
+        )
+
+
+context = aa.get_current_context()
+session = context.session_flags
+
+context.add(SetFlag(session, "baseline", git_snapshot, keep=True))
+context.add(
+    LoopGuard(
+        RequirePairedChange(
+            session,
+            ["pyproject.toml", "requirements*.txt"],
+            ["CHANGELOG.md"],
+            "Add the dependency change to the changelog.",
+            name="dependencies-need-changelog",
+        )
+    )
+)
+aa.run(context)
+```
+
+- The process does not save the snapshot. `SetFlag` does that on `session-start`,
+  so a different process can use the same baseline.
+- `changed_paths` with `None` gives each uncommitted change. Thus the process is
+  strict, not open, when the baseline is missing.
+- The test of a process that reads git uses a real repository in a temporary
+  folder. Section 6 shows it.
+
+## 5. Know what the harness can deliver
 
 `context.add` rejects a process when its hook, its verdicts or its context do not
 fit the target harness. The error names the reason. Three traps:
@@ -146,7 +240,7 @@ fit the target harness. The error names the reason. Three traps:
 An `allow` on `pre-tool` never approves the call. It only states no objection, so
 the permission rules of the harness still apply.
 
-## 5. Test the process
+## 6. Test the process
 
 Unit test first, with a plain object. No files and no harness:
 
@@ -170,13 +264,43 @@ The imports of the test are `from agent_actions.model import Harness, Hook,
 HookInput, ToolCall, ToolKind, Verdict`. Run the test with the interpreter that
 has agent_actions.
 
+A process that uses flags gets a plain dict. A process that reads a snapshot gets
+a git repository in the temporary folder of the test:
+
+```python
+import git
+from agent_actions.model import Harness, Hook, HookInput, Verdict
+from agent_actions.processes import git_snapshot
+
+
+def test_dependency_change_needs_a_changelog_entry(tmp_path) -> None:
+    repo = git.Repo.init(tmp_path)
+    (tmp_path / "pyproject.toml").write_text("dependencies = []\n")
+    repo.index.add(["pyproject.toml"])
+    repo.index.commit("first")
+    event = HookInput(Harness.CLAUDE, Hook.STOP, root=str(tmp_path))
+    flags = {"baseline": git_snapshot(event)}
+    process = RequirePairedChange(
+        flags, ["pyproject.toml"], ["CHANGELOG.md"], "Add an entry.", name="changelog"
+    )
+
+    (tmp_path / "pyproject.toml").write_text("dependencies = ['requests']\n")
+    assert process.run(event).verdict is Verdict.BLOCK
+
+    (tmp_path / "CHANGELOG.md").write_text("- Added requests.\n")
+    assert process.run(event).verdict is Verdict.ALLOW
+```
+
+A condition is a function. Call it with an event: `assert reads_the_guide(event)`.
+
 Then run the process through the runner file, with a payload from a real
-session. Section 6 shows the command.
+session. Section 7 shows the command. For a process with `when`, do two replays:
+one with the flag in `.hooks/flags.json`, and one without it.
 
 Prove the test can fail: break the rule on purpose, watch the test go red, then
 restore it.
 
-## 6. Check the recorded session when a hook behaves oddly
+## 7. Check the recorded session when a hook behaves oddly
 
 ```text
 .hooks/flags.json                                     the flags of the project

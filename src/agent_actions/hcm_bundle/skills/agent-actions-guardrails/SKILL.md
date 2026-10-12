@@ -1,6 +1,6 @@
 ---
 name: agent-actions-guardrails
-description: Choose and configure the checks of an Agent Actions runner file - run the tests automatically, keep a coverage floor, lint and format the code, and stop the agent from changing or reading files. Has runner templates for C#, Odin, Julia and Python, and a method for each other language. Use when the user asks for tests, coverage, a linter, a formatter or protected files as agent guardrails, or asks to add a check to the runner file.
+description: Choose and configure the checks of an Agent Actions runner file - run the tests automatically, keep a coverage floor, lint and format the code, and stop the agent from changing or reading files. Also make a check depend on the context - run it only on the files that the session changed, only after an event, or because of a flag from an earlier session or from a person. Has runner templates for C#, Odin, Julia and Python, and a method for each other language. Use when the user asks for tests, coverage, a linter, a formatter or protected files as agent guardrails, asks to add a check to the runner file, or asks for a check that runs only in some conditions or that remembers something between sessions.
 ---
 
 # Configure the checks of a project
@@ -42,8 +42,15 @@ runs a small number of times. Put the full test run, the coverage and the build 
 | Limit the retries | `LoopGuard(process, max_blocks=3)` | stop |
 | Limit the tool calls | `ToolCallBudget(200)` | before a tool call |
 | Give the project rules | `AddContext(text)` | start |
+| Run a check only in some conditions | `context.add(process, when=...)` | each |
+| Lint only the files that the session changed | `SetFlag` with `git_snapshot`, and `on_changed_paths` | start and stop |
+| Run the tests only after a change of the source code | `SetFlag` with `git_snapshot`, and `when` with `changed_paths` | start and stop |
+| Make the next session pay a debt, for example tests that fail | `SetFlag(context.flags, ...)` and `clear_on_pass` | after a tool call, stop, start |
+| Let a person switch a guardrail on or off | A flag in `.hooks/flags.json`, and `when` | each |
 
 `RequireTests()` is `RequireCommand` with pytest. Use it only in a Python project.
+
+The last five rows are on the page [Checks that depend on the context](./flags-and-conditions.md).
 
 ## Procedure
 
@@ -108,6 +115,31 @@ two processes of one class need two names.
 
 Write each `reason` as an instruction: what the agent must do next, and which
 shortcut it must not use. Example: "Fix the type errors. Do not suppress a warning."
+
+## Checks that depend on the context
+
+The templates run each check on each hook call. Start with them. Add a condition
+when a check is too slow, too strict, or needs a memory.
+
+| Symptom | Pattern |
+| --- | --- |
+| The stop is slow, and most sessions change only some files. | Check only the files that the session changed. |
+| The project has old lint problems that are not the task of the agent. | Check only the files that the session changed. |
+| A session ends while a check fails, and the next session does not know. | A debt for the next session. |
+| The agent must read or run something before it changes some files. | A gate that an event opens. |
+| A small request becomes a change of many files. | A limit for one prompt. |
+| A change of one file needs a change of a different file. | Files that must change together. |
+| A person must stop or steer the agents without a new install. | Switches that a person sets. |
+
+Each pattern is a complete runner file on the page
+[Checks that depend on the context](./flags-and-conditions.md). Three rules apply
+to all of them:
+
+- A flag is a named JSON value. `context.flags` is for all sessions of the
+  project, and `context.session_flags` is for one session.
+- Use `context.add(process, when=...)`, not an `if` around `context.add`. With an
+  `if`, `install` does not register the hook of the process.
+- Add `.hooks/flags.json` to `.gitignore`, and protect the flag files from the agent.
 
 ## Tests
 
@@ -186,8 +218,8 @@ Pattern rules:
 Before you use `RevertWrites`:
 
 - The project must be a git repository with one commit or more.
-- `.gitignore` must contain `.hooks/*/`. If it does not, a pattern that covers
-  `.hooks` deletes the session records.
+- `.gitignore` must contain `.hooks/*/` and `.hooks/flags.json`. If it does not,
+  a pattern that covers `.hooks` deletes the session records and the flags.
 - Commit the protected files. A protected file with changes at the session start
   is not reverted. The agent gets a message to ask the user about it.
 - git cannot revert a file that it ignores, for example `.env`. For such a file,

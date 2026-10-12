@@ -40,6 +40,9 @@ Template: `./assets/python_checks.py`. The test tool has a coverage threshold, s
 - The affected tests give early feedback, so the template runs no tests at the
   session start. To add that, use `RunCommand` as the other templates do.
 - For pyright, replace the `types` command with `[PYTHON, "-m", "pyright"]`.
+- `ruff check` and `ruff format --check` accept file paths. To read only the files
+  that the session changed, use pattern 1 of
+  [Checks that depend on the context](./flags-and-conditions.md).
 - `RequireTests()` is a short form of `RequireCommand` with `python -m pytest -q`.
   Use `RequireCommand` when the command needs options.
 

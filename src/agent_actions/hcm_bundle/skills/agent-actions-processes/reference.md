@@ -257,7 +257,7 @@ condition returns a true value.
 
 ```python
 flags = context.flags
-context.add(RequireTests(), when=lambda event: flags.get("tests-due"))
+context.add(RequireTests(), when=lambda _: flags.get("tests-due"))
 ```
 
 - Use `when`, not an `if` around `context.add`. `install` loads the runner file
@@ -361,7 +361,7 @@ context.add(
 )
 context.add(
     LoopGuard(RequireTests(command_runner=clear_on_pass(flags, "tests-due"))),
-    when=lambda event: flags.get("tests-due"),
+    when=lambda _: flags.get("tests-due"),
 )
 
 aa.run(context)

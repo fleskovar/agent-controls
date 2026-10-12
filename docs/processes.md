@@ -288,7 +288,7 @@ condition returns a true value.
 
 ```python
 flags = context.flags
-context.add(RequireTests(), when=lambda event: flags.get("tests-due"))
+context.add(RequireTests(), when=lambda _: flags.get("tests-due"))
 context.add(AddContext(RULES), when=lambda event: event.agent_type == "Explore")
 ```
 
@@ -399,7 +399,7 @@ context.add(RequireCommand(["ruff", "check", "{paths}"], name="lint",
 context.add(SetFlag(flags, "tests-due", on=[aa.Hook.STOP]),
             when=lambda event: changed_paths(event.root, session.get("baseline"), SOURCES))
 context.add(LoopGuard(RequireTests(command_runner=clear_on_pass(flags, "tests-due"))),
-            when=lambda event: flags.get("tests-due"))
+            when=lambda _: flags.get("tests-due"))
 
 aa.run(context)
 ```

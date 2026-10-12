@@ -1,7 +1,9 @@
 """The runner files in examples/ load, and each one does what its docstring tells."""
 
 import json
+import re
 import shutil
+import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +12,7 @@ import pytest
 
 from agent_actions.app import install_hooks, run_hook
 from agent_actions.harnesses import make_adapter
+from agent_actions.hcm import BUNDLE_DIR
 from agent_actions.model import Harness, Hook
 from agent_actions.runtime import load_runner
 
@@ -162,3 +165,37 @@ def test_human_switches_follow_the_flag_file_without_a_new_install(tmp_path: Pat
 
     tamper = {"tool_name": "Bash", "tool_input": {"command": "echo {} > .hooks/flags.json"}}
     assert decision(call(root, Hook.PRE_TOOL, **tamper)) == "deny"
+
+
+# --- the runner files in the pages of the hcm bundle ----------------------------------
+
+FENCED_PYTHON = re.compile(r"^[ \t]*```python\n(.*?)^[ \t]*```", re.DOTALL | re.MULTILINE)
+
+
+def bundle_runner_files() -> dict[str, str]:
+    """Each fenced Python block in the bundle that is a complete runner file."""
+    return {
+        f"{page.parent.name}/{page.name}#{number}": textwrap.dedent(block)
+        for page in sorted(BUNDLE_DIR.rglob("*.md"))
+        for number, block in enumerate(FENCED_PYTHON.findall(page.read_text("utf-8")), start=1)
+        if "aa.run(context)" in block
+    }
+
+
+@pytest.mark.parametrize("label", bundle_runner_files())
+def test_each_runner_file_in_the_bundle_pages_loads_for_claude(label: str, tmp_path: Path) -> None:
+    runner = tmp_path / RUNNER
+    runner.write_text(bundle_runner_files()[label], encoding="utf-8")
+
+    assert load_runner(runner, make_adapter(Harness.CLAUDE), None, None).hooks()
+
+
+def test_the_bundle_shows_each_pattern_of_the_examples() -> None:
+    page = (BUNDLE_DIR / "skills/agent-actions-guardrails/flags-and-conditions.md").read_text(
+        "utf-8"
+    )
+    skill = (BUNDLE_DIR / "skills/agent-actions-processes/SKILL.md").read_text("utf-8")
+
+    assert [f"## Pattern {number}:" in page for number in range(1, 7)] == [True] * 6
+    assert "class ChangeBudget(aa.PreToolProcess):" in page
+    assert "class RequirePairedChange(aa.StopProcess):" in skill

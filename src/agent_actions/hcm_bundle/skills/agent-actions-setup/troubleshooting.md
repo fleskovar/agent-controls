@@ -5,12 +5,15 @@
 Each hook call writes a record in the project root.
 
 ```text
+.hooks/flags.json               the flags of the project, as they are now
 .hooks/<UTC timestamp>_<short session id>/
     session.json
+    flags.json                  the flags of the session, as they are now
     main-agent/
         state.json   the state, the input and the output of each process, for each call
         io.json      the raw stdin, the stdout and the exit code of each call
-        log.txt      the aa.log lines, and one summary line for each result
+        log.txt      the aa.log lines, one summary line for each result, one line
+                     for each skipped process, and one for each change of the flags
     <agent type>_<timestamp>/   one folder for each subagent
 ```
 
@@ -63,6 +66,12 @@ commands of the processes, and it writes a new session record.
 | A protected file with work of the user is not reverted. | The file had changes when the session started. | Commit or discard the changes. Then the file is protected again. |
 | The agent stops while a check fails. | `LoopGuard` allowed the stop after its maximum of blocked stops. | This is correct. Read the last message of the agent, and review the approach. |
 | `BlockReads` blocks a harmless shell command. | The shell check is a substring match. `.env` also matches `.environment`. | Use a longer pattern, or set `check_shell=False`. |
+| A process with `when` does not run. | Its condition is false. `log.txt` has a `skipped` line for the process. | Read the flag files. Find in `log.txt` the hook call that changed, or did not change, the flag. |
+| A process with `when` never runs, and `log.txt` has no line for it. | The process is in an `if`, or its hook is not registered. | Use `context.add(process, when=...)`, then run `agent_actions install` again. |
+| The flags disappear, or `changed_paths` lists `.hooks/flags.json`. | Git does not ignore the flag file. `RevertWrites` deletes it, and a snapshot sees it as a change. | Add `.hooks/flags.json` to `.gitignore`. |
+| `A flag of ... is not JSON-serializable` | A process put a value in a flag that is not a JSON type, for example a set. | Use text, numbers, booleans, lists and dicts. |
+| A check on the changed files also reads files from before the session. | The session has no baseline. Then each uncommitted change counts. | Start a new session after the install, so that `session-start` saves the snapshot. |
+| `git_snapshot` or `changed_paths` fails. | The project is not a git repository, or it has no commit. | Run `git init` and make the first commit. |
 
 ## When a process raises an exception
 

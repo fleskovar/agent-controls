@@ -46,11 +46,13 @@ The hooks and the limits of each harness are in [the harness page](./harnesses.m
    On Linux and macOS, the interpreter is `.venv/bin/python`. Use this
    interpreter for each `python` command below.
 3. Add these lines to `.gitignore`. The second line keeps the session records and
-   the coverage reports out of git, and keeps the runner file in git.
+   the coverage reports out of git, and keeps the runner file in git. The third
+   line keeps the flags of the project out of git.
 
    ```gitignore
    .venv/
    .hooks/*/
+   .hooks/flags.json
    ```
 4. Write the runner file. Use the `agent-actions-guardrails` skill. It has a
    template for C#, Odin, Julia and Python, and a method for other languages.

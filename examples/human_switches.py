@@ -16,7 +16,7 @@ value, in each open session, and `agent_actions install` is not necessary.
 Delete a flag from the file to switch it off.
 
 A flag is a file, so an agent can also change it. The first process below blocks
-the write tools on `.hooks/`, and each shell command that mentions `.hooks`.
+the write tools on the flag files, and each shell command that mentions `flags.json`.
 
 Copilot CLI has no context channel on session-start. Remove the note there.
 """
@@ -27,7 +27,9 @@ from agent_actions.processes import AddContext, BlockWrites
 context = aa.get_current_context()
 flags = context.flags
 
-context.add(BlockWrites([".hooks/**"], check_shell=True, name="protect-flags"))
+FLAG_FILES = [".hooks/flags.json", ".hooks/*/flags.json"]
+
+context.add(BlockWrites(FLAG_FILES, check_shell=True, name="protect-flags"))
 
 # The runner file runs at each hook call, after the framework loads the flags.
 # Thus the text of a flag can be a part of a reason or of a context.
