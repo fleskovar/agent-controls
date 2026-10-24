@@ -9,6 +9,13 @@ from agent_actions.processes.commands import (
     run_subprocess,
 )
 from agent_actions.processes.context import AddContext
+from agent_actions.processes.coverage import (
+    DotnetCoverage,
+    PytestCoverage,
+    RequireCoverage,
+    TypeScriptCoverage,
+    report_coverage,
+)
 from agent_actions.processes.flags import (
     SetFlag,
     changed_paths,
@@ -27,17 +34,22 @@ __all__ = [
     "BlockWrites",
     "CheckAfterEdit",
     "CommandOutcome",
+    "DotnetCoverage",
     "LoopGuard",
     "PathGuard",
+    "PytestCoverage",
     "RequireCommand",
+    "RequireCoverage",
     "RequireTests",
     "RevertWrites",
     "RunCommand",
     "SetFlag",
     "ToolCallBudget",
+    "TypeScriptCoverage",
     "changed_paths",
     "clear_on_pass",
     "git_snapshot",
     "on_changed_paths",
+    "report_coverage",
     "run_subprocess",
 ]

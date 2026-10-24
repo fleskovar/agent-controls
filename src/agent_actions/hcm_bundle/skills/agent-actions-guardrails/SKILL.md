@@ -1,6 +1,6 @@
 ---
 name: agent-actions-guardrails
-description: Choose and configure the checks of an Agent Actions runner file - run the tests automatically, keep a coverage floor, lint and format the code, and stop the agent from changing or reading files. Also make a check depend on the context - run it only on the files that the session changed, only after an event, or because of a flag from an earlier session or from a person. Has runner templates for C#, Odin, Julia and Python, and a method for each other language. Use when the user asks for tests, coverage, a linter, a formatter or protected files as agent guardrails, asks to add a check to the runner file, or asks for a check that runs only in some conditions or that remembers something between sessions.
+description: Choose and configure the checks of an Agent Actions runner file - run the tests automatically, keep the coverage from a decrease or above a floor, lint and format the code, and stop the agent from changing or reading files. Also make a check depend on the context - run it only on the files that the session changed, only after an event, or because of a flag from an earlier session or from a person. Has runner templates for C#, Odin, Julia and Python, and a method for each other language. Use when the user asks for tests, coverage, a linter, a formatter or protected files as agent guardrails, asks to add a check to the runner file, or asks for a check that runs only in some conditions or that remembers something between sessions.
 ---
 
 # Configure the checks of a project
@@ -20,7 +20,7 @@ reference page has each parameter of each included process.
 | A session or a subagent starts | `session-start`, `subagent-start` | `RunCommand`, `AddContext`, `RevertWrites` | Reads the output as context. Never blocked. |
 | Before a tool call | `pre-tool` | `BlockWrites`, `BlockReads`, `PathGuard`, `BlockShellCommands`, `ToolCallBudget` | The call is denied, with a reason. |
 | After a tool call | `post-tool` | `CheckAfterEdit`, `RevertWrites` | Reads the failure output as context. Never blocked. |
-| The agent or a subagent wants to stop | `stop`, `subagent-stop` | `RequireCommand`, `RequireTests`, `LoopGuard` | Continues to work until the command passes. |
+| The agent or a subagent wants to stop | `stop`, `subagent-stop` | `RequireCommand`, `RequireTests`, `RequireCoverage`, `LoopGuard` | Continues to work until the command passes. |
 
 A check after an edit runs many times in one task. Keep it below 10 seconds:
 a formatter, a type check, the tests that the edit affects. A check on the stop
@@ -33,7 +33,8 @@ runs a small number of times. Put the full test run, the coverage and the build 
 | Show the failing tests before work starts | `RunCommand(TESTS, on=[Hook.SESSION_START])` | start |
 | Run the tests after each edit | `CheckAfterEdit(TESTS, patterns=["*.cs"])` | after a tool call |
 | No stop while a test fails | `LoopGuard(RequireCommand(TESTS, name="tests"))` | stop |
-| Keep a coverage floor | `RequireCommand` with a command that fails below the floor | stop |
+| No decrease of the coverage in a session | `PytestCoverage`, `DotnetCoverage`, `TypeScriptCoverage` or `RequireCoverage`, and its `baseline()` | start and stop |
+| Keep a fixed coverage floor | The same process with `minimum=80` | stop |
 | Format each edited file | `CheckAfterEdit([FORMATTER, "{paths}"], patterns=[...])` | after a tool call |
 | No stop with lint, type or build errors | `LoopGuard(RequireCommand(LINT, name="lint"))` | stop |
 | Stop edits of files | `BlockWrites(patterns)` and `RevertWrites(patterns)` | before and after a tool call |
@@ -71,8 +72,9 @@ The last five rows are on the page [Checks that depend on the context](./flags-a
    folders of the project. Delete each process that the project does not need.
 5. Run each command by hand in the project root. Fix the project, or tell the
    user, until each command passes.
-6. Measure the coverage. Set the floor to the measured value, rounded down. Ask
-   the user before you set a higher floor.
+6. Keep the coverage baseline of the session start, the default of the templates.
+   If the user asks for a fixed floor, measure the coverage. Set `COVERAGE_MINIMUM`
+   to the measured value, rounded down. Ask the user before you set a higher floor.
 7. Ask the user which paths the agent must not change. Put them in `PROTECTED`,
    with a reason for each group. See [Protect files](#protect-files).
 8. Register the hooks, and run one hook by hand. The `agent-actions-setup` skill
@@ -159,6 +161,31 @@ Protect the tests that define the behavior. If the agent can change a test, it
 can make a failing test pass without a fix.
 
 ## Coverage
+
+The coverage gate blocks the stop when the coverage is below a baseline. Thus new
+code needs tests, or it must be on a path that the tests run already.
+
+- **Baseline at the session start.** The default. `baseline()` measures the
+  coverage when the session starts. The gate compares with that value.
+- **Fixed baseline.** Give `minimum=80`. The gate measures nothing at the start.
+
+```python
+gate = PytestCoverage(context.session_flags, source="my_package", name="tests-and-coverage")
+context.add(gate.baseline())
+context.add(LoopGuard(gate))
+```
+
+| Language | Process | Needs |
+| --- | --- | --- |
+| Python | `PytestCoverage(flags, source="my_package")` | pytest-cov |
+| C# | `DotnetCoverage(flags)` | coverlet.collector in each test project |
+| TypeScript | `TypeScriptCoverage(flags)`. For Jest, give `command=`. | `@vitest/coverage-v8` |
+| Other | `RequireCoverage(command, flags, pattern=...)`, or `reports="**/lcov.info"` | A command that prints the percentage, or writes Cobertura or LCOV |
+
+The baseline runs all tests when the session starts. Give `agent_actions install`
+a `--timeout` that is longer than the test run.
+
+A fixed floor also works without the gate:
 
 1. If the test tool has a threshold option, use it. Examples: `pytest
    --cov-fail-under=80`, `cargo llvm-cov --fail-under-lines 80`.

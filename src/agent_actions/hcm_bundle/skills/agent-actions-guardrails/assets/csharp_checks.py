@@ -5,21 +5,20 @@ Register the hooks again after each change of the process list:
     python -m agent_actions install .hooks/agent_checks.py --target claude --timeout 1200
 
 - Before and after each tool call: protect the paths in PROTECTED.
-- When a session starts: show the tests that fail already.
+- When a session starts: show the tests that fail already, and measure the
+  coverage. It is the baseline of the session.
 - After each edit of a C# file: `dotnet format whitespace` on that file.
 - When the agent wants to stop: the format check, the build with warnings as
-  errors, then all tests with a coverage floor.
+  errors, then all tests. The coverage must not be below the baseline.
 
 The commands run in the project root. They need a solution or a project file there.
 """
-
-import sys
-from pathlib import Path
 
 import agent_actions as aa
 from agent_actions.processes import (
     BlockWrites,
     CheckAfterEdit,
+    DotnetCoverage,
     LoopGuard,
     RequireCommand,
     RevertWrites,
@@ -28,13 +27,9 @@ from agent_actions.processes import (
 
 SOURCE_FILES = ("*.cs",)
 TESTS = ["dotnet", "test", "--nologo"]
-# Line coverage in percent. The stop is blocked below it. Measure the project, then set it.
-COVERAGE_FLOOR = 80
-# coverlet.collector, which the test templates of .NET include, writes one report
-# for each test project into a new subfolder of the results folder.
-COVERAGE_FOLDER = ".hooks/coverage"
-COVERAGE_REPORTS = f"{COVERAGE_FOLDER}/**/coverage.cobertura.xml"
-COVERAGE_SCRIPT = str(Path(__file__).with_name("coverage_floor.py"))
+# The line coverage baseline. None: the coverage at the session start. A number: a
+# fixed minimum in percent, for example 80. The stop is blocked below the baseline.
+COVERAGE_MINIMUM: float | None = None
 # The message for the agent, and the patterns that it covers. Patterns are relative
 # to the project root, and `*` also matches `/`. No patterns: no protection.
 PROTECTED: dict[str, list[str]] = {
@@ -102,28 +97,14 @@ context.add(
         )
     )
 )
-context.add(
-    LoopGuard(
-        RequireCommand(
-            [
-                sys.executable,
-                COVERAGE_SCRIPT,
-                str(COVERAGE_FLOOR),
-                COVERAGE_REPORTS,
-                "--",
-                *TESTS,
-                "--collect:XPlat Code Coverage",
-                "--results-directory",
-                COVERAGE_FOLDER,
-            ],
-            reason=(
-                f"Make all tests pass and keep the line coverage at {COVERAGE_FLOOR} % or more. "
-                "Add tests for the new code. Do not change or delete tests."
-            ),
-            timeout=600.0,
-            name="tests-and-coverage",
-        )
-    )
-)
+#    The coverage gate also fails when a test fails. coverlet.collector, which the
+#    test templates of .NET include, writes one report for each test project into
+#    .hooks/coverage. The gate merges them. Without a fixed minimum, its baseline
+#    process runs all tests a second time when the session starts.
+session = context.session_flags if COVERAGE_MINIMUM is None else None
+coverage = DotnetCoverage(session, minimum=COVERAGE_MINIMUM, name="tests-and-coverage")
+if session is not None:
+    context.add(coverage.baseline())
+context.add(LoopGuard(coverage))
 
 aa.run(context)

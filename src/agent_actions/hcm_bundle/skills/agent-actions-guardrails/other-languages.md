@@ -9,7 +9,7 @@ for each row of this table, then put the commands into the closest template.
 | Fast feedback | Which command checks an edit in less than 10 seconds? | `CheckAfterEdit` |
 | Format | Which command formats the files that it gets as arguments? | `CheckAfterEdit` with `{paths}` |
 | Lint and types | Which command fails on a lint, type or build problem? | `RequireCommand` on the stop |
-| Coverage | Does the test tool fail below a threshold? If not, can it write Cobertura or LCOV? | `RequireCommand`, with `coverage_floor.py` if necessary |
+| Coverage | Does the test output show the percentage? If not, can the tool write Cobertura or LCOV? | `RequireCoverage` with `pattern` or `reports` |
 
 ## Procedure
 
@@ -26,9 +26,9 @@ for each row of this table, then put the commands into the closest template.
 
 Make sure that each command is correct for the version of the tool in the project.
 
-| Toolchain | After an edit | Stop: lint and types | Stop: tests | Coverage floor |
+| Toolchain | After an edit | Stop: lint and types | Stop: tests | Coverage |
 | --- | --- | --- | --- | --- |
-| TypeScript | `npx prettier --write {paths}` | `npx tsc --noEmit`, `npx eslint .` | `npx vitest run` | `npx vitest run --coverage --coverage.thresholds.lines=80` |
+| TypeScript | `npx prettier --write {paths}` | `npx tsc --noEmit`, `npx eslint .` | `npx vitest run` | `TypeScriptCoverage(flags)` |
 | Go | `gofmt -w {paths}` | `go vet ./...` | `go test ./...` | No option. Use a script that reads the `total:` line of `go tool cover -func=cover.out` |
 | Rust | `rustfmt {paths}` | `cargo clippy --all-targets -- -D warnings` | `cargo test` | `cargo llvm-cov --fail-under-lines 80` |
 | C and C++ with CMake | `clang-format -i {paths}` | `cmake --build build` with warnings as errors | `ctest --test-dir build --output-on-failure` | `gcovr --fail-under-line 80` |

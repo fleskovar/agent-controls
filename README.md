@@ -11,8 +11,8 @@ state between calls, and records each call under `.hooks/`.
 - Flags keep state between processes and between sessions. A `when` condition
   starts a process only when a flag, or a change in the work tree, asks for it.
 - Included processes: path guards, shell guard, required tests and commands,
-  loop guard, post-edit check, revert of protected files, context injection,
-  tool call budget, flags and git snapshots.
+  coverage gate, loop guard, post-edit check, revert of protected files, context
+  injection, tool call budget, flags and git snapshots.
 - One runtime dependency: GitPython. Python 3.11 or later.
 
 ## Quick start

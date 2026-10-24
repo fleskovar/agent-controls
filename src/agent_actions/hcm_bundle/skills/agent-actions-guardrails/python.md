@@ -1,6 +1,6 @@
 # Python
 
-Template: `./assets/python_checks.py`. The test tool has a coverage threshold, so
+Template: `./assets/python_checks.py`. The coverage gate is `PytestCoverage`, so
 `coverage_floor.py` is not necessary.
 
 ## The checks
@@ -11,7 +11,8 @@ Template: `./assets/python_checks.py`. The test tool has a coverage threshold, s
 | After an edit of `*.py` | `affected-tests` | `python -m pytest --testmon -q` | Run only the tests that the edit affects. |
 | Stop | `lint` | `python -m ruff check src tests` | Fail on a lint problem. |
 | Stop | `types` | `python -m mypy` | Fail on a type error. |
-| Stop | `tests-and-coverage` | `python -m pytest -q --cov=<package> --cov-fail-under=80` | Fail on a failing test, and below the coverage floor. |
+| Start | `tests-and-coverage-baseline` | `python -m pytest -q --cov=<package>` | Measure the coverage baseline of the session. |
+| Stop | `tests-and-coverage` | `python -m pytest -q --cov=<package>` | Fail on a failing test, and below the coverage baseline. |
 
 `python` is `sys.executable`: the interpreter that runs the hook.
 
@@ -26,6 +27,7 @@ Template: `./assets/python_checks.py`. The test tool has a coverage threshold, s
 
 - Set `COVERAGE_PACKAGE` to the import name of the package, and `LINT_PATHS` to
   the folders of the code.
+- For a fixed coverage floor, set `COVERAGE_MINIMUM`. The start then runs no tests.
 - Put the options of ruff, mypy and pytest in `pyproject.toml`. Add that file to
   `PROTECTED`.
 

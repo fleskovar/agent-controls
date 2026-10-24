@@ -16,6 +16,8 @@ in each supported harness, unless its section tells you a limit.
 | [`AddContext`](#addcontext) | `session-start` | Adds text to the context of the agent. |
 | [`RequireCommand`](#requirecommand) | `stop` | Blocks the stop while a command fails. |
 | [`RequireTests`](#requiretests) | `stop` | `RequireCommand` with pytest. |
+| [`RequireCoverage`](#requirecoverage) | `stop` | Blocks the stop when the coverage is below the session start or a minimum. |
+| [`PytestCoverage`](#pytestcoverage), [`DotnetCoverage`](#dotnetcoverage), [`TypeScriptCoverage`](#typescriptcoverage) | `stop` | `RequireCoverage` for pytest, .NET and Vitest. |
 | [`LoopGuard`](#loopguard) | The hooks of its process | Allows a blocked stop after a maximum of blocks. |
 | [`SetFlag`](#setflag) | `session-start` | Sets a flag for a later hook call or a later session. |
 
@@ -218,6 +220,72 @@ RequireTests(command=(sys.executable, "-m", "pytest", "-q"), *, reason=..., **op
 
 `RequireCommand` with pytest as the default command, and a reason that forbids
 changes to the tests. For a different test tool, use `RequireCommand`.
+
+## RequireCoverage
+
+```python
+RequireCoverage(command, flags=None, *, minimum=None, pattern=r"(\d+(?:\.\d+)?)\s*%",
+                reports="", tolerance=0.0, reason=..., timeout=600.0, max_output_chars=3000,
+                on=(Hook.STOP,), name="", command_runner=run_subprocess)
+```
+
+Blocks the stop when the coverage is below a baseline. Thus new code needs tests,
+or it must be on a path that the tests run already. Give one of the two baselines:
+
+- `flags`: compare with the coverage at the session start. Give
+  `context.session_flags`, and also add `gate.baseline()`. That process measures
+  the coverage on `session-start`, and keeps the first value of the session.
+- `minimum`: compare with a fixed value in percent, for example `90`.
+
+```python
+gate = RequireCoverage(["make", "coverage"], context.session_flags, name="coverage")
+context.add(gate.baseline())
+context.add(LoopGuard(gate))
+
+context.add(LoopGuard(RequireCoverage(["make", "coverage"], minimum=90, name="coverage")))
+```
+
+- The coverage is the last match of `pattern` in the command output. The pattern
+  has one group, the number.
+- With `reports`, a glob relative to the project root, the gate reads the line
+  coverage of the Cobertura or LCOV reports that match, and not the output. It
+  deletes these reports before each run. Reports of one file merge.
+- A failed command blocks the stop. Output without a coverage number also blocks it.
+- `tolerance` is the decrease in percentage points that the gate accepts.
+- A baseline measurement that fails stores None. The gate then allows the stop.
+- The baseline runs the full command at the session start. Make the hook timeout
+  of `install` longer than the command.
+
+## PytestCoverage
+
+```python
+PytestCoverage(flags=None, *, source="", **options)
+```
+
+`RequireCoverage` with pytest-cov, run by the interpreter of the hook. `source` is
+the package to measure, for example `source="my_package"`. It reads the `TOTAL`
+line, with two decimals.
+
+## DotnetCoverage
+
+```python
+DotnetCoverage(flags=None, *, results=".hooks/coverage", **options)
+```
+
+`RequireCoverage` with `dotnet test --collect:"XPlat Code Coverage"`. The
+coverlet.collector package of the .NET test templates writes the Cobertura reports
+into `results`. The gate merges the reports of all test projects.
+
+## TypeScriptCoverage
+
+```python
+TypeScriptCoverage(flags=None, **options)
+```
+
+`RequireCoverage` with `npx vitest run --coverage --coverage.reporter=text-summary`.
+It reads the `Lines` line of the summary. For Jest, give
+`command="npx jest --coverage --coverageReporters=text-summary"`. Vitest needs the
+`@vitest/coverage-v8` package.
 
 ## LoopGuard
 

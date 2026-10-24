@@ -6,8 +6,9 @@ Register the hooks again after each change of the process list:
 
 - Before and after each tool call: protect the paths in PROTECTED.
 - After each edit of a Python file: `ruff format`, then the tests that the change affects.
-- When the agent wants to stop: `ruff check`, the type check, and all tests with
-  a coverage floor.
+- When the session starts: measure the coverage. It is the baseline of the session.
+- When the agent wants to stop: `ruff check`, the type check, and all tests. The
+  coverage must not be below the baseline.
 
 The commands use the interpreter that runs the hook. Thus ruff, mypy, pytest,
 pytest-cov and pytest-testmon must be in the same virtual environment as agent_actions.
@@ -21,6 +22,7 @@ from agent_actions.processes import (
     BlockWrites,
     CheckAfterEdit,
     LoopGuard,
+    PytestCoverage,
     RequireCommand,
     RevertWrites,
 )
@@ -29,10 +31,11 @@ PYTHON = sys.executable
 SOURCE_FILES = ("*.py",)
 # The folders that `ruff check` reads when the agent stops.
 LINT_PATHS = ("src", "tests")
-# The import name of the package that the coverage floor measures.
+# The import name of the package that the coverage gate measures.
 COVERAGE_PACKAGE = "my_package"
-# Total coverage in percent. The stop is blocked below it. Measure the project, then set it.
-COVERAGE_FLOOR = 80
+# The coverage baseline. None: the coverage at the session start. A number: a fixed
+# minimum in percent, for example 80. The stop is blocked below the baseline.
+COVERAGE_MINIMUM: float | None = None
 # The message for the agent, and the patterns that it covers. Patterns are relative
 # to the project root, and `*` also matches `/`. No patterns: no protection.
 PROTECTED: dict[str, list[str]] = {
@@ -96,25 +99,14 @@ context.add(
         )
     )
 )
-context.add(
-    LoopGuard(
-        RequireCommand(
-            [
-                PYTHON,
-                "-m",
-                "pytest",
-                "-q",
-                f"--cov={COVERAGE_PACKAGE}",
-                "--cov-report=term-missing:skip-covered",
-                f"--cov-fail-under={COVERAGE_FLOOR}",
-            ],
-            reason=(
-                f"Make all tests pass and keep the total coverage at {COVERAGE_FLOOR} % or more. "
-                "Add tests for the new code. Do not change or delete tests."
-            ),
-            name="tests-and-coverage",
-        )
-    )
+#    The coverage gate also fails when a test fails. Without a fixed minimum, its
+#    baseline process runs all tests when the session starts.
+session = context.session_flags if COVERAGE_MINIMUM is None else None
+coverage = PytestCoverage(
+    session, minimum=COVERAGE_MINIMUM, source=COVERAGE_PACKAGE, name="tests-and-coverage"
 )
+if session is not None:
+    context.add(coverage.baseline())
+context.add(LoopGuard(coverage))
 
 aa.run(context)

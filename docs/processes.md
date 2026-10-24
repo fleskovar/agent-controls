@@ -18,6 +18,7 @@ stays closed when a harness reports a path style the framework cannot map.
 | [`BlockShellCommands`](#blockshellcommands) | `pre-tool` | shell commands that match a regular expression |
 | [`RequireCommand`](#requirecommand) | `stop`, `subagent-stop` | the stop while a command fails |
 | [`RequireTests`](#requiretests) | `stop`, `subagent-stop` | the stop while pytest fails |
+| [`RequireCoverage`](#requirecoverage) | `stop`, `subagent-stop` | the stop while the coverage is below the session start or a minimum |
 | [`LoopGuard`](#loopguard) | the hooks of the process it wraps | nothing; it releases a blocked stop |
 | [`CheckAfterEdit`](#checkafteredit) | `post-tool` | nothing; it adds the failure output as context |
 | [`RunCommand`](#runcommand) | any hook with a context channel | nothing; it adds the failure output as context |
@@ -128,6 +129,54 @@ RequireTests(command=(sys.executable, "-m", "pytest", "-q"), *, reason=..., **op
 > them pass.
 
 Pair it with `BlockWrites(["tests/**"])`, which enforces the second sentence.
+
+## RequireCoverage
+
+```python
+RequireCoverage(command, flags=None, *, minimum=None, pattern=r"(\d+(?:\.\d+)?)\s*%",
+                reports="", tolerance=0.0, reason=..., timeout=600.0, max_output_chars=3000,
+                on=(Hook.STOP,), name="", command_runner=run_subprocess)
+PytestCoverage(flags=None, *, source="", **options)
+DotnetCoverage(flags=None, *, results=".hooks/coverage", **options)
+TypeScriptCoverage(flags=None, **options)
+```
+
+Blocks the stop when the coverage is below a baseline. New code then needs a
+test, or it must be on a path that the tests run already. The baseline is the
+coverage at the session start, or a fixed minimum.
+
+```python
+session = context.session_flags
+
+# Baseline at the session start: gate.baseline() measures it on `session-start`.
+gate = PytestCoverage(session, source="my_package")
+context.add(gate.baseline())
+context.add(LoopGuard(gate))
+
+# A fixed baseline: no measurement at the start.
+context.add(LoopGuard(DotnetCoverage(minimum=90)))
+```
+
+- Give `flags` or `minimum`, not both. `baseline()` is a `SetFlag` with
+  `keep=True`. Thus a second `session-start` in one session keeps the first value.
+- The command can be any command of the project. The coverage is the last match
+  of `pattern` in its output. The pattern has one group, the number.
+- With `reports`, a glob relative to the project root, the gate reads the line
+  coverage of the Cobertura or LCOV reports that match. It deletes them before
+  each run, so an old report never passes. Reports of one file merge.
+- A failed command blocks, and so does output without a coverage number. A
+  baseline measurement that failed stores None, and the gate then allows the stop.
+- `tolerance` is the decrease in percentage points that the gate accepts.
+- The baseline runs the full command at the session start. Give `install` a
+  `--timeout` that is longer than the command.
+
+| Variant | Command | Coverage from |
+| --- | --- | --- |
+| `PytestCoverage` | `pytest -q --cov=<source> --cov-report=term-missing:skip-covered --cov-precision=2` | the `TOTAL` line |
+| `DotnetCoverage` | `dotnet test --nologo --collect:"XPlat Code Coverage" --results-directory <results>` | the Cobertura reports of coverlet.collector |
+| `TypeScriptCoverage` | `npx vitest run --coverage --coverage.reporter=text-summary` | the `Lines` line of the summary |
+
+For Jest, give `TypeScriptCoverage(command="npx jest --coverage --coverageReporters=text-summary")`.
 
 ## LoopGuard
 
