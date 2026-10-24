@@ -86,11 +86,11 @@ For a first guardrail without the template, this runner file is sufficient:
 
 ```python
 import agent_actions as aa
-from agent_actions.processes import BlockWrites, LoopGuard, RequireCommand
+from agent_actions.processes import BlockWrites, Limit, RequireCommand
 
 context = aa.get_current_context()
 context.add(BlockWrites(["tests/**"]))
-context.add(LoopGuard(RequireCommand(["dotnet", "test", "--nologo"], name="tests")))
+context.add(Limit(RequireCommand(["dotnet", "test", "--nologo"], name="tests"), max_in_a_row=3))
 aa.run(context)
 ```
 

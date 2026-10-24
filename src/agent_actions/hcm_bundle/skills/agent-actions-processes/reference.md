@@ -18,7 +18,8 @@ in each supported harness, unless its section tells you a limit.
 | [`RequireTests`](#requiretests) | `stop` | `RequireCommand` with pytest. |
 | [`RequireCoverage`](#requirecoverage) | `stop` | Blocks the stop when the coverage is below the session start or a minimum. |
 | [`PytestCoverage`](#pytestcoverage), [`DotnetCoverage`](#dotnetcoverage), [`TypeScriptCoverage`](#typescriptcoverage) | `stop` | `RequireCoverage` for pytest, .NET and Vitest. |
-| [`LoopGuard`](#loopguard) | The hooks of its process | Allows a blocked stop after a maximum of blocks. |
+| [`Limit`](#limit) | The hooks of its process | After a maximum of blocks, allows, asks the user, or blocks with a new message. |
+| [`LoopGuard`](#loopguard) | The hooks of its process | Deprecated. Use `Limit`. |
 | [`SetFlag`](#setflag) | `session-start` | Sets a flag for a later hook call or a later session. |
 
 Each process accepts `name=""`. Two processes of one class in one runner file
@@ -240,9 +241,10 @@ or it must be on a path that the tests run already. Give one of the two baseline
 ```python
 gate = RequireCoverage(["make", "coverage"], context.session_flags, name="coverage")
 context.add(gate.baseline())
-context.add(LoopGuard(gate))
+context.add(Limit(gate, max_in_a_row=3))
 
-context.add(LoopGuard(RequireCoverage(["make", "coverage"], minimum=90, name="coverage")))
+coverage = RequireCoverage(["make", "coverage"], minimum=90, name="coverage")
+context.add(Limit(coverage, max_in_a_row=3))
 ```
 
 - The coverage is the last match of `pattern` in the command output. The pattern
@@ -287,11 +289,50 @@ It reads the `Lines` line of the summary. For Jest, give
 `command="npx jest --coverage --coverageReporters=text-summary"`. Vitest needs the
 `@vitest/coverage-v8` package.
 
+## Limit
+
+```python
+Limit(process, *, max_in_a_row=None, max_total=None, window=None,
+      then=Verdict.ALLOW, message=..., counts=is_block, problem=None, reset_on=(),
+      store=None, flags=None, flag="", name="", clock=time.time)
+```
+
+Wraps a process of any family, and counts its blocks. After a maximum, it
+changes the verdict. Give `max_in_a_row`, `max_total` or both.
+
+```python
+context.add(Limit(RequireCommand(["dotnet", "test"], name="tests"), max_in_a_row=5, max_total=10))
+context.add(Limit(BlockWrites(["migrations/**"]), max_in_a_row=2, then=aa.Verdict.ASK))
+```
+
+- `max_in_a_row`: a result that is not a block resets this count. A release
+  also resets it.
+- `max_total`: this count never resets. It is per agent and per session.
+- The block that reaches a maximum gets `message`. On `stop`, it is the last
+  text that the agent reads before the release.
+- `then` is the verdict after a maximum. `ALLOW` releases the check. `ASK` lets
+  the user decide, on `pre-tool` only. `BLOCK` never releases, and gives
+  `message` instead.
+- `counts` selects the results to count. Example: `counts=lambda result: bool(result.context)`.
+- With `flags` and `flag`, each release sets the flag.
+- `reset_on=[Hook.USER_PROMPT]`: a new prompt resets the count in a row.
+- `problem=problem_text`: a different failure resets the count in a row. The
+  function `problem_text` ignores numbers, for example durations.
+- `window=600`: `max_total` counts only the results of the last 600 seconds.
+- `store=context.session_flags`: the main agent and its subagents share the
+  counts. `store=context.flags`: the sessions share them. A person resets the
+  counts when they delete the flag with the name of the guard.
+- `Context.add` rejects a `then` verdict that the hooks cannot deliver.
+- The name of the guard is `Limit(<name of the process>)`.
+
 ## LoopGuard
 
 ```python
 LoopGuard(process, max_blocks=3, *, name="")
 ```
+
+Deprecated. Use `Limit(process, max_in_a_row=3)`. Do not add `LoopGuard` to a
+new runner file.
 
 Wraps a stop process. It passes each block and counts it. After `max_blocks`
 blocks in a row, it allows the next stop and resets the count. A stop that the
@@ -394,7 +435,7 @@ change of a source file, also when that change is from an earlier session:
 ```python
 import agent_actions as aa
 from agent_actions.processes import (
-    LoopGuard,
+    Limit,
     RequireCommand,
     RequireTests,
     SetFlag,
@@ -428,7 +469,7 @@ context.add(
     when=lambda event: changed_paths(event.root, session.get("baseline"), SOURCES),
 )
 context.add(
-    LoopGuard(RequireTests(command_runner=clear_on_pass(flags, "tests-due"))),
+    Limit(RequireTests(command_runner=clear_on_pass(flags, "tests-due")), max_in_a_row=3),
     when=lambda _: flags.get("tests-due"),
 )
 

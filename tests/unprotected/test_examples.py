@@ -78,7 +78,7 @@ def test_checks_on_changed_files_reads_only_the_files_of_the_session(tmp_path: P
     blocked = call(root, Hook.STOP)
 
     assert blocked["decision"] == "block"
-    assert "[LoopGuard(lint)]" in blocked["reason"]
+    assert "[Limit(lint)]" in blocked["reason"]
     assert "new.py" in blocked["reason"]
     assert "old.py" not in blocked["reason"]
 
@@ -199,3 +199,28 @@ def test_the_bundle_shows_each_pattern_of_the_examples() -> None:
     assert [f"## Pattern {number}:" in page for number in range(1, 7)] == [True] * 6
     assert "class ChangeBudget(aa.PreToolProcess):" in page
     assert "class RequirePairedChange(aa.StopProcess):" in skill
+
+
+def test_exit_strategies_ask_the_user_and_release_the_stop_with_a_review_note(
+    tmp_path: Path,
+) -> None:
+    root = project(tmp_path, "exit_strategies")
+    write = tool("Write", str(root / "migrations/0002.sql"))
+    assert [decision(call(root, Hook.PRE_TOOL, **write)) for _ in range(3)] == [
+        "deny",
+        "deny",
+        "ask",
+    ]
+
+    (root / "test_pricing.py").write_text("def test_total():\n    assert False\n")
+    stops = [call(root, Hook.STOP) for _ in range(6)]
+
+    assert [stop.get("decision") for stop in stops] == [*["block"] * 5, None]
+    assert "Try a different approach" in stops[4]["reason"]
+    assert json.loads((root / ".hooks/flags.json").read_text("utf-8")) == {"needs-review": True}
+    note = context_text(call(root, Hook.SESSION_START, session="two"))
+    assert note is not None and "the user must review it" in note
+
+    call(root, Hook.STOP, session="three")
+    call(root, Hook.USER_PROMPT, session="three", prompt="try a mock")
+    assert "Count: 1 of 5 in a row" in call(root, Hook.STOP, session="three")["reason"]

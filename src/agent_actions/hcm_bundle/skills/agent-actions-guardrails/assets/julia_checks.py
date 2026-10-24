@@ -22,7 +22,7 @@ import agent_actions as aa
 from agent_actions.processes import (
     BlockWrites,
     CheckAfterEdit,
-    LoopGuard,
+    Limit,
     RequireCommand,
     RevertWrites,
     RunCommand,
@@ -93,10 +93,10 @@ context.add(
     )
 )
 
-# 4. When the agent wants to stop. LoopGuard allows the stop after 3 blocked stops
+# 4. When the agent wants to stop. Limit allows the stop after 3 blocked stops
 #    in a row, so the agent cannot loop.
 context.add(
-    LoopGuard(
+    Limit(
         RequireCommand(
             [
                 *JULIA,
@@ -107,11 +107,12 @@ context.add(
             ],
             reason='Format the files: julia -e "using JuliaFormatter; format(ARGS)" src test',
             name="format-check",
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 context.add(
-    LoopGuard(
+    Limit(
         RequireCommand(
             [
                 sys.executable,
@@ -131,7 +132,8 @@ context.add(
             ),
             timeout=900.0,
             name="tests-and-coverage",
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 

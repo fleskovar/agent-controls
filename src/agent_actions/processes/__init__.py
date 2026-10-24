@@ -23,7 +23,7 @@ from agent_actions.processes.flags import (
     git_snapshot,
     on_changed_paths,
 )
-from agent_actions.processes.limits import LoopGuard, ToolCallBudget
+from agent_actions.processes.limits import Limit, LoopGuard, ToolCallBudget, problem_text
 from agent_actions.processes.paths import BlockReads, BlockWrites, PathGuard, RevertWrites
 from agent_actions.processes.shell import BlockShellCommands
 
@@ -35,6 +35,7 @@ __all__ = [
     "CheckAfterEdit",
     "CommandOutcome",
     "DotnetCoverage",
+    "Limit",
     "LoopGuard",
     "PathGuard",
     "PytestCoverage",
@@ -50,6 +51,7 @@ __all__ = [
     "clear_on_pass",
     "git_snapshot",
     "on_changed_paths",
+    "problem_text",
     "report_coverage",
     "run_subprocess",
 ]

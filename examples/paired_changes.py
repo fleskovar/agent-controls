@@ -9,7 +9,7 @@ The two pairs below:
 - A change of the public API needs a change of the documentation.
 - A change of the dependencies needs an entry in the changelog.
 
-LoopGuard lets the agent stop after 3 blocked stops, for the change that needs no
+Limit lets the agent stop after 3 blocked stops, for the change that needs no
 paired change. The agent then reports that to the user.
 """
 
@@ -17,7 +17,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 import agent_actions as aa
-from agent_actions.processes import LoopGuard, SetFlag, changed_paths, git_snapshot
+from agent_actions.processes import Limit, SetFlag, changed_paths, git_snapshot
 
 
 class RequirePairedChange(aa.StopProcess):
@@ -55,25 +55,27 @@ session = context.session_flags
 context.add(SetFlag(session, "baseline", git_snapshot, keep=True))
 
 context.add(
-    LoopGuard(
+    Limit(
         RequirePairedChange(
             session,
             ["src/api/**"],
             ["docs/**"],
             "Update the documentation of the API.",
             name="api-needs-docs",
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 context.add(
-    LoopGuard(
+    Limit(
         RequirePairedChange(
             session,
             ["pyproject.toml", "requirements*.txt"],
             ["CHANGELOG.md"],
             "Add the dependency change to the changelog.",
             name="dependencies-need-changelog",
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 

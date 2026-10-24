@@ -64,7 +64,7 @@ commands of the processes, and it writes a new session record.
 | `RevertWrites` fails on each tool call. | The project is not a git repository, or it has no commit. | Run `git init` and make the first commit, or remove `RevertWrites`. |
 | The session records disappear. | `RevertWrites` protects `.hooks/`, and git does not ignore the records. | Add `.hooks/*/` to `.gitignore`. |
 | A protected file with work of the user is not reverted. | The file had changes when the session started. | Commit or discard the changes. Then the file is protected again. |
-| The agent stops while a check fails. | `LoopGuard` allowed the stop after its maximum of blocked stops. | This is correct. Read the last message of the agent, and review the approach. |
+| The agent stops while a check fails. | `Limit` allowed the stop after its maximum of blocked stops. | This is correct. Read the last message of the agent, and review the approach. |
 | `BlockReads` blocks a harmless shell command. | The shell check is a substring match. `.env` also matches `.environment`. | Use a longer pattern, or set `check_shell=False`. |
 | A process with `when` does not run. | Its condition is false. `log.txt` has a `skipped` line for the process. | Read the flag files. Find in `log.txt` the hook call that changed, or did not change, the flag. |
 | A process with `when` never runs, and `log.txt` has no line for it. | The process is in an `if`, or its hook is not registered. | Use `context.add(process, when=...)`, then run `agent_actions install` again. |

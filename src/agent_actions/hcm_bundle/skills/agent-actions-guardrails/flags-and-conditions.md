@@ -65,7 +65,7 @@ import sys
 
 import agent_actions as aa
 from agent_actions.processes import (
-    LoopGuard,
+    Limit,
     RequireCommand,
     SetFlag,
     changed_paths,
@@ -84,18 +84,19 @@ context.add(SetFlag(session, "baseline", git_snapshot, keep=True))
 
 # The tool accepts file paths: `{paths}` becomes the changed files that match.
 context.add(
-    LoopGuard(
+    Limit(
         RequireCommand(
             [PYTHON, "-m", "ruff", "check", "{paths}"],
             name="lint",
             command_runner=on_changed_paths(session, ["*.py"]),
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 
 # The tool reads the full project: run it only when a source file changed.
 context.add(
-    LoopGuard(RequireCommand(TESTS, name="tests")),
+    Limit(RequireCommand(TESTS, name="tests"), max_in_a_row=3),
     when=lambda event: changed_paths(event.root, session.get("baseline"), SOURCES),
 )
 
@@ -112,12 +113,12 @@ aa.run(context)
 
 ## Pattern 2: a debt for the next session
 
-Use it when the agent can stop before a check passes: `LoopGuard` released the
+Use it when the agent can stop before a check passes: `Limit` released the
 stop, or the user closed the session. The next session must not start clean.
 
 ```python
 import agent_actions as aa
-from agent_actions.processes import AddContext, LoopGuard, RequireTests, SetFlag, clear_on_pass
+from agent_actions.processes import AddContext, Limit, RequireTests, SetFlag, clear_on_pass
 from agent_actions.processes.paths import matching_pattern, relative_path
 
 SOURCES = ["src/**", "tests/**"]
@@ -144,7 +145,7 @@ def edits_a_source_file(event: aa.HookInput) -> bool:
 
 context.add(SetFlag(flags, "tests-due", on=[aa.Hook.POST_TOOL]), when=edits_a_source_file)
 context.add(
-    LoopGuard(RequireTests(command_runner=clear_on_pass(flags, "tests-due"))),
+    Limit(RequireTests(command_runner=clear_on_pass(flags, "tests-due")), max_in_a_row=3),
     when=lambda _: flags.get("tests-due"),
 )
 context.add(AddContext(NOTE, name="tests-due-note"), when=lambda _: flags.get("tests-due"))
@@ -268,21 +269,22 @@ did not.
 ```python
 context.add(SetFlag(session, "baseline", git_snapshot, keep=True))
 context.add(
-    LoopGuard(
+    Limit(
         RequirePairedChange(
             session,
             ["pyproject.toml", "requirements*.txt"],
             ["CHANGELOG.md"],
             "Add the dependency change to the changelog.",
             name="dependencies-need-changelog",
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 ```
 
 `RequirePairedChange` is a process of 15 lines. Its code and its test are in the
 `agent-actions-processes` skill, in the section about flags. Keep the
-`LoopGuard`: some changes need no paired change, and the agent then reports that.
+`Limit`: some changes need no paired change, and the agent then reports that.
 
 ## Pattern 6: switches that a person sets
 
@@ -326,6 +328,61 @@ aa.run(context)
 - The runner file runs again at each hook call, after the flags are loaded.
   Thus the value of a flag can be a part of a reason or of a context.
 - Tell the user the names of the flags and the file. The user sets them, not you.
+- Copilot CLI has no context channel on `session-start`. Remove the note there.
+
+## Pattern 7: an exit strategy and a review for the next session
+
+Use it when a check can hold the agent for ever. `Limit` holds the agent a
+maximum number of times. Then it allows, asks the user, or keeps the block with
+a new message. Its release sets a flag, and the next session reads the flag.
+
+```python
+import agent_actions as aa
+from agent_actions.processes import (
+    AddContext,
+    BlockWrites,
+    Limit,
+    RequireTests,
+    clear_on_pass,
+    problem_text,
+)
+
+NOTE = (
+    "An earlier session stopped before the tests passed, and the user must review it. "
+    "Ask the user about the review before you start other work."
+)
+
+context = aa.get_current_context()
+flags = context.flags
+
+context.add(
+    Limit(
+        RequireTests(command_runner=clear_on_pass(flags, "needs-review")),
+        max_in_a_row=5,
+        max_total=10,
+        reset_on=[aa.Hook.USER_PROMPT],
+        problem=problem_text,
+        flags=flags,
+        flag="needs-review",
+    )
+)
+context.add(AddContext(NOTE, name="review-note"), when=lambda _: flags.get("needs-review"))
+context.add(
+    Limit(
+        BlockWrites(["migrations/**"], reason="Only a person changes the migrations."),
+        max_in_a_row=2,
+        then=aa.Verdict.ASK,
+    )
+)
+
+aa.run(context)
+```
+
+- After 5 failed stops in a row, or 10 in the session, the agent can stop. The
+  5th block tells it to try a different approach, or to ask the user for help.
+- A new prompt, or a different failure, starts the count in a row again.
+- A pass of the tests deletes `needs-review`. Thus the note stops.
+- After 2 denied writes in a row, the next write asks the user.
 - Copilot CLI has no context channel on `session-start`. Remove the note there.
 
 ## Protect the flags

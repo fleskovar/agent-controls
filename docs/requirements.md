@@ -176,7 +176,7 @@ that code:
 - **R39.** `RequireCommand(command)` runs a command on `stop` and blocks the
   stop while the command fails. `RequireTests` is `RequireCommand` with
   `pytest -q` as the default.
-- **R40.** `LoopGuard(process, max_blocks)` wraps a stop process. After
+- **R40.** Deprecated by R59. `LoopGuard(process, max_blocks)` wraps a stop process. After
   `max_blocks` consecutive blocks it allows the stop and tells the agent to
   report that the strategy needs a review.
 - **R41.** `CheckAfterEdit(command)` runs a command on `post-tool` after a write
@@ -223,6 +223,28 @@ that code:
 - **R58.** `on_changed_paths` gives a command only the files that changed after
   a snapshot, and passes when there are none. `clear_on_pass` deletes a flag
   when a command passes.
+
+### 3.10 Limits
+
+- **R59.** `Limit(process, max_in_a_row, max_total)` wraps a process of any
+  family, and counts the results that `counts` selects (default: each block).
+  A result that is not counted resets the count in a row. The total never resets.
+- **R60.** The result that reaches a maximum gets `message`. Each counted result
+  after a maximum gets the verdict `then`: allow, ask or block. A release resets
+  the count in a row. With `flags` and `flag`, a release sets the flag.
+- **R61.** `Limit` has the hooks, the family and the verdicts of the wrapped
+  process, plus `then`. Thus `Context.add` rejects a `then` verdict that a hook
+  cannot deliver (R15).
+- **R62.** `Process.needs(hook)` gives the verdicts and the context use of a
+  process on one hook. `Context.add` and the engine check these. The default is
+  `verdicts` and `uses_context` on each hook.
+- **R63.** On each hook in `reset_on`, `Limit` resets the count in a row. On a
+  `reset_on` hook that the wrapped process does not use, `Limit` only allows.
+- **R64.** With `problem`, a counted result with a new problem name starts the
+  count in a row again. With `window`, `max_total` applies to the counted
+  results of the last `window` seconds.
+- **R65.** With `store`, `Limit` keeps its counts in that flags dict, under its
+  name. The agents and the sessions that share the dict share the counts.
 
 ## 4. Refinements to task.md
 

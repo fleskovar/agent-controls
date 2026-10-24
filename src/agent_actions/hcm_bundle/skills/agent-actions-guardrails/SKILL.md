@@ -20,7 +20,7 @@ reference page has each parameter of each included process.
 | A session or a subagent starts | `session-start`, `subagent-start` | `RunCommand`, `AddContext`, `RevertWrites` | Reads the output as context. Never blocked. |
 | Before a tool call | `pre-tool` | `BlockWrites`, `BlockReads`, `PathGuard`, `BlockShellCommands`, `ToolCallBudget` | The call is denied, with a reason. |
 | After a tool call | `post-tool` | `CheckAfterEdit`, `RevertWrites` | Reads the failure output as context. Never blocked. |
-| The agent or a subagent wants to stop | `stop`, `subagent-stop` | `RequireCommand`, `RequireTests`, `RequireCoverage`, `LoopGuard` | Continues to work until the command passes. |
+| The agent or a subagent wants to stop | `stop`, `subagent-stop` | `RequireCommand`, `RequireTests`, `RequireCoverage`, `Limit` | Continues to work until the command passes. |
 
 A check after an edit runs many times in one task. Keep it below 10 seconds:
 a formatter, a type check, the tests that the edit affects. A check on the stop
@@ -32,15 +32,22 @@ runs a small number of times. Put the full test run, the coverage and the build 
 | --- | --- | --- |
 | Show the failing tests before work starts | `RunCommand(TESTS, on=[Hook.SESSION_START])` | start |
 | Run the tests after each edit | `CheckAfterEdit(TESTS, patterns=["*.cs"])` | after a tool call |
-| No stop while a test fails | `LoopGuard(RequireCommand(TESTS, name="tests"))` | stop |
+| No stop while a test fails | `Limit(RequireCommand(TESTS, name="tests"), max_in_a_row=3)` | stop |
 | No decrease of the coverage in a session | `PytestCoverage`, `DotnetCoverage`, `TypeScriptCoverage` or `RequireCoverage`, and its `baseline()` | start and stop |
 | Keep a fixed coverage floor | The same process with `minimum=80` | stop |
 | Format each edited file | `CheckAfterEdit([FORMATTER, "{paths}"], patterns=[...])` | after a tool call |
-| No stop with lint, type or build errors | `LoopGuard(RequireCommand(LINT, name="lint"))` | stop |
+| No stop with lint, type or build errors | `Limit(RequireCommand(LINT, name="lint"), max_in_a_row=3)` | stop |
 | Stop edits of files | `BlockWrites(patterns)` and `RevertWrites(patterns)` | before and after a tool call |
 | Stop reads of secrets | `BlockReads([".env", "secrets/**"])` | before a tool call |
 | Stop dangerous commands | `BlockShellCommands([r"git\s+push\s+.*--force"])` | before a tool call |
-| Limit the retries | `LoopGuard(process, max_blocks=3)` | stop |
+| Limit the retries | `Limit(process, max_in_a_row=3)` | stop |
+| Limit the retries in a row and in the session, on any hook | `Limit(process, max_in_a_row=5, max_total=10)` | each |
+| Let the user decide after a guard denies twice | `Limit(guard, max_in_a_row=2, then=aa.Verdict.ASK)` | before a tool call |
+| A new prompt starts the retries again | `Limit(process, max_in_a_row=5, reset_on=[aa.Hook.USER_PROMPT])` | stop and prompt |
+| Count only the same failure in a row | `Limit(process, max_in_a_row=5, problem=problem_text)` | each |
+| One count for the main agent and its subagents | `Limit(process, max_total=10, store=context.session_flags)` | each |
+| A maximum per period | `Limit(process, max_total=20, window=600)` | each |
+| Tell the next session that a check gave up | `Limit(..., flags=context.flags, flag="needs-review")`, and `AddContext` with `when` | stop, start |
 | Limit the tool calls | `ToolCallBudget(200)` | before a tool call |
 | Give the project rules | `AddContext(text)` | start |
 | Run a check only in some conditions | `context.add(process, when=...)` | each |
@@ -151,9 +158,9 @@ Use the three moments together. Each one has a different job.
   agent then knows which failures are its own.
 - **After an edit.** `CheckAfterEdit` gives feedback early. Use it only when the
   test run is fast, or when a tool selects the affected tests.
-- **Stop.** `RequireCommand` in a `LoopGuard` is the gate. This one is mandatory.
+- **Stop.** `RequireCommand` in a `Limit` is the gate. This one is mandatory.
 
-After 3 blocked stops in a row, `LoopGuard` allows the stop and tells the agent
+After 3 blocked stops in a row, `Limit` allows the stop and tells the agent
 to report that the approach needs a review. Without it, an agent that cannot fix
 a test loops until the user stops it.
 
@@ -172,7 +179,7 @@ code needs tests, or it must be on a path that the tests run already.
 ```python
 gate = PytestCoverage(context.session_flags, source="my_package", name="tests-and-coverage")
 context.add(gate.baseline())
-context.add(LoopGuard(gate))
+context.add(Limit(gate, max_in_a_row=3))
 ```
 
 | Language | Process | Needs |

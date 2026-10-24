@@ -25,7 +25,9 @@ composition, not new code.
 | "No force pushes, no rm -rf" | `BlockShellCommands([r"git\s+push\s+.*--force", r"\brm\s+-rf\b"])` |
 | "Tests must pass before it stops" | `RequireTests()` |
 | "The linter must pass before it stops" | `RequireCommand("ruff check .")` |
-| "Do not let it retry for ever" | `LoopGuard(RequireTests(), max_blocks=3)` |
+| "Do not let it retry for ever" | `Limit(RequireTests(), max_in_a_row=3)` |
+| "After 5 failures in a row, or 10 in total, let it stop and ask for help" | `Limit(RequireTests(), max_in_a_row=5, max_total=10)` |
+| "After 2 denied attempts, let me decide" | `Limit(BlockWrites([...]), max_in_a_row=2, then=aa.Verdict.ASK)` |
 | "Lint each file it edits" | `CheckAfterEdit("ruff check {paths}", patterns=["*.py"])` |
 | "Show it the failed tests at the start" | `RunCommand("dotnet test", on=[Hook.SESSION_START])` |
 | "Tell it the project rules at the start" | `AddContext("...")` |
@@ -48,11 +50,11 @@ One file per project lists the processes. It is harness-agnostic.
 
 ```python
 import agent_actions as aa
-from agent_actions.processes import BlockWrites, LoopGuard, RequireTests
+from agent_actions.processes import BlockWrites, Limit, RequireTests
 
 context = aa.get_current_context()
 context.add(BlockWrites(["tests/**"]))
-context.add(LoopGuard(RequireTests(), max_blocks=3))
+context.add(Limit(RequireTests(), max_in_a_row=3))
 aa.run(context)
 ```
 
@@ -170,7 +172,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 import agent_actions as aa
-from agent_actions.processes import LoopGuard, SetFlag, changed_paths, git_snapshot
+from agent_actions.processes import Limit, SetFlag, changed_paths, git_snapshot
 
 
 class RequirePairedChange(aa.StopProcess):
@@ -207,14 +209,15 @@ session = context.session_flags
 
 context.add(SetFlag(session, "baseline", git_snapshot, keep=True))
 context.add(
-    LoopGuard(
+    Limit(
         RequirePairedChange(
             session,
             ["pyproject.toml", "requirements*.txt"],
             ["CHANGELOG.md"],
             "Add the dependency change to the changelog.",
             name="dependencies-need-changelog",
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 aa.run(context)

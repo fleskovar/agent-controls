@@ -18,7 +18,7 @@ import agent_actions as aa
 from agent_actions.processes import (
     BlockWrites,
     CheckAfterEdit,
-    LoopGuard,
+    Limit,
     RequireCommand,
     RevertWrites,
     RunCommand,
@@ -82,11 +82,11 @@ if start_hooks:
 #    generates no code, so it is fast enough to run after each edit.
 context.add(CheckAfterEdit(CHECK, patterns=SOURCE_FILES, reason=CHECK_REASON, name="check"))
 
-# 4. When the agent wants to stop. LoopGuard allows the stop after 3 blocked stops
+# 4. When the agent wants to stop. Limit allows the stop after 3 blocked stops
 #    in a row, so the agent cannot loop.
-context.add(LoopGuard(RequireCommand(CHECK, reason=CHECK_REASON, name="vet")))
+context.add(Limit(RequireCommand(CHECK, reason=CHECK_REASON, name="vet"), max_in_a_row=3))
 context.add(
-    LoopGuard(
+    Limit(
         RequireCommand(
             TESTS,
             reason=(
@@ -94,7 +94,8 @@ context.add(
                 "Add tests for the new code. Do not change or delete tests."
             ),
             name="tests",
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 

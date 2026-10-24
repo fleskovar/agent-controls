@@ -19,7 +19,7 @@ from collections.abc import Callable, Mapping
 from typing import Any, ClassVar, Final
 
 from agent_actions.errors import StateError
-from agent_actions.model import Hook, HookInput, ProcessResult, Verdict
+from agent_actions.model import Capability, Hook, HookInput, ProcessResult, Verdict
 
 ALLOW_ONLY: Final = frozenset({Verdict.ALLOW})
 ALLOW_OR_BLOCK: Final = frozenset({Verdict.ALLOW, Verdict.BLOCK})
@@ -57,6 +57,13 @@ class Process(ABC):
     def hooks(self) -> tuple[Hook, ...]:
         """The hooks this process runs on: `on`, or the first hook of the family."""
         return tuple(self.on) or self.family[:1]
+
+    def needs(self, hook: Hook) -> Capability:
+        """The verdicts that the process can return on a hook, and its use of context.
+
+        The default is `verdicts` and `uses_context` on each hook. A wrapper overrides it.
+        """
+        return Capability(self.verdicts, self.uses_context)
 
     def state_names(self) -> tuple[str, ...]:
         names: tuple[str, ...] | None = self.__dict__.get(_STATE_NAMES_ATTRIBUTE)

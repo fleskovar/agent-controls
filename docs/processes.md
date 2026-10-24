@@ -19,7 +19,8 @@ stays closed when a harness reports a path style the framework cannot map.
 | [`RequireCommand`](#requirecommand) | `stop`, `subagent-stop` | the stop while a command fails |
 | [`RequireTests`](#requiretests) | `stop`, `subagent-stop` | the stop while pytest fails |
 | [`RequireCoverage`](#requirecoverage) | `stop`, `subagent-stop` | the stop while the coverage is below the session start or a minimum |
-| [`LoopGuard`](#loopguard) | the hooks of the process it wraps | nothing; it releases a blocked stop |
+| [`Limit`](#limit) | the hooks of the process it wraps | after a maximum of blocks: it allows, asks, or blocks with a new message |
+| [`LoopGuard`](#loopguard) | the hooks of the process it wraps | deprecated; use `Limit` |
 | [`CheckAfterEdit`](#checkafteredit) | `post-tool` | nothing; it adds the failure output as context |
 | [`RunCommand`](#runcommand) | any hook with a context channel | nothing; it adds the failure output as context |
 | [`RevertWrites`](#revertwrites) | `session-start`, `subagent-start`, `post-tool` | nothing; it reverts changes to protected paths with git |
@@ -151,10 +152,10 @@ session = context.session_flags
 # Baseline at the session start: gate.baseline() measures it on `session-start`.
 gate = PytestCoverage(session, source="my_package")
 context.add(gate.baseline())
-context.add(LoopGuard(gate))
+context.add(Limit(gate, max_in_a_row=3))
 
 # A fixed baseline: no measurement at the start.
-context.add(LoopGuard(DotnetCoverage(minimum=90)))
+context.add(Limit(DotnetCoverage(minimum=90), max_in_a_row=3))
 ```
 
 - Give `flags` or `minimum`, not both. `baseline()` is a `SetFlag` with
@@ -178,11 +179,84 @@ context.add(LoopGuard(DotnetCoverage(minimum=90)))
 
 For Jest, give `TypeScriptCoverage(command="npx jest --coverage --coverageReporters=text-summary")`.
 
+## Limit
+
+```python
+Limit(process, *, max_in_a_row=None, max_total=None, window=None,
+      then=Verdict.ALLOW, message=..., counts=is_block, problem=None, reset_on=(),
+      store=None, flags=None, flag="", name="", clock=time.time)
+```
+
+Wraps a process of any family, and counts its results. After a maximum, it
+changes the verdict. Use it as an exit strategy: a check that holds the agent
+a limited number of times cannot cause an infinite loop.
+
+```python
+# The tests hold the stop 5 times in a row, or 10 times in the session.
+context.add(Limit(RequireTests(), max_in_a_row=5, max_total=10))
+
+# 2 denied writes in a row, then the user decides.
+context.add(Limit(BlockWrites(["migrations/**"]), max_in_a_row=2, then=aa.Verdict.ASK))
+
+# A new prompt, or a different failure, starts the count in a row again.
+# The main agent and its subagents share the counts.
+context.add(
+    Limit(
+        RequireTests(),
+        max_in_a_row=5,
+        reset_on=[aa.Hook.USER_PROMPT],
+        problem=problem_text,
+        store=context.session_flags,
+    )
+)
+
+# At most 20 blocked shell commands in 10 minutes. Then the block gets a new message.
+context.add(Limit(BlockShellCommands([r"\bsudo\b"]), max_total=20, window=600,
+                  then=aa.Verdict.BLOCK, message="Stop. Ask the user what to do."))
+```
+
+| Option | Effect |
+| --- | --- |
+| `max_in_a_row` | The maximum of counted results in a row. A result that is not counted resets this count. A release also resets it. |
+| `max_total` | The maximum of counted results for the agent in the session. This count never resets. |
+| `window` | Seconds. With it, `max_total` counts only the results of the last `window` seconds: a maximum per period. |
+| `then` | The verdict of each counted result after a maximum. |
+| `message` | The text that the agent reads at the maximum, and after it. The default depends on `then`. |
+| `counts` | A function of the result that selects the results to count. The default counts each block. |
+| `problem` | A function of the result that names the problem. A new name starts the count in a row again, because the agent made progress. `problem_text` gives the reasons without numbers. |
+| `reset_on` | Hooks that reset the count in a row, for example `Hook.USER_PROMPT`: a new prompt is a new problem. On a hook that the wrapped process does not use, the guard only allows. |
+| `store` | A flags dict for the counts. `context.session_flags` shares them between the main agent and its subagents. `context.flags` shares them between sessions. Without it, each agent has its own counts. |
+| `flags`, `flag` | Each release also sets the flag. A later process, or a later session, can then react to it. |
+
+Give `max_in_a_row`, `max_total` or both. Each result that the guard counts
+gets the counts as a reason, for example `Count: 2 of 5 in a row.` The result
+that reaches a maximum also gets `message`.
+
+| `then` | Exit strategy | Use it for |
+| --- | --- | --- |
+| `Verdict.ALLOW` | Release the check. | A gate on `stop` that cannot pass, for example the tests. The agent stops and asks for help. |
+| `Verdict.ASK` | Let the user decide. Only `pre-tool` can deliver it. | A guard that can have a valid exception, for example a protected file. |
+| `Verdict.BLOCK` | Never release. Give the agent `message` instead of the plain reason. | A guard that must hold, for example a shell guard. |
+
+- On `stop`, an `allow` cannot send text to the agent. Thus the agent reads
+  `message` at the maximum, one stop before the release.
+- `Context.add` rejects a `then` verdict that the hooks of the process cannot
+  deliver, for example `ASK` on `stop`.
+- Without `store`, the counts are state of the agent. Each subagent has its own
+  counts. With `store`, the flag has the name of the guard. To reset the counts,
+  a person deletes that flag.
+- `reset_on` and `problem` do not change the total.
+- The state of the wrapped process is under `inner` in `state.json`.
+- The name is `Limit(<name of the process>)`.
+
 ## LoopGuard
 
 ```python
 LoopGuard(process, max_blocks=3, *, name="")
 ```
+
+Deprecated. Use `Limit(process, max_in_a_row=3)`. `LoopGuard` stays for the
+runner files that use it.
 
 Wraps a stop process. It passes blocks through and counts them. After
 `max_blocks` blocks in a row it allows the stop instead, and resets the counter.
@@ -427,7 +501,7 @@ and `RunCommand`.
 ```python
 import agent_actions as aa
 from agent_actions.processes import (
-    LoopGuard, RequireCommand, RequireTests, SetFlag,
+    Limit, RequireCommand, RequireTests, SetFlag,
     changed_paths, clear_on_pass, git_snapshot, on_changed_paths,
 )
 
@@ -447,7 +521,8 @@ context.add(RequireCommand(["ruff", "check", "{paths}"], name="lint",
 # stays for the later sessions, until the tests pass.
 context.add(SetFlag(flags, "tests-due", on=[aa.Hook.STOP]),
             when=lambda event: changed_paths(event.root, session.get("baseline"), SOURCES))
-context.add(LoopGuard(RequireTests(command_runner=clear_on_pass(flags, "tests-due"))),
+context.add(Limit(RequireTests(command_runner=clear_on_pass(flags, "tests-due")),
+                  max_in_a_row=3),
             when=lambda _: flags.get("tests-due"))
 
 aa.run(context)
@@ -506,7 +581,7 @@ A C# project with a test run at each point of the agent lifecycle:
 
 ```python
 import agent_actions as aa
-from agent_actions.processes import CheckAfterEdit, LoopGuard, RequireCommand, RunCommand
+from agent_actions.processes import CheckAfterEdit, Limit, RequireCommand, RunCommand
 
 TESTS = "dotnet test --nologo"
 
@@ -517,7 +592,10 @@ context.add(RunCommand(TESTS, on=[aa.Hook.SESSION_START, aa.Hook.SUBAGENT_START]
 context.add(CheckAfterEdit(TESTS, patterns=["*.cs"]))
 # End of the task of the agent or of a subagent: block the stop while a test fails.
 context.add(
-    LoopGuard(RequireCommand(TESTS, on=[aa.Hook.STOP, aa.Hook.SUBAGENT_STOP], name="tests"))
+    Limit(
+        RequireCommand(TESTS, on=[aa.Hook.STOP, aa.Hook.SUBAGENT_STOP], name="tests"),
+        max_in_a_row=3,
+    )
 )
 aa.run(context)
 ```

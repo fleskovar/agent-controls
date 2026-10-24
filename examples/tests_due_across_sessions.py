@@ -2,7 +2,7 @@
 
 - After a write tool changes a source file: set the project flag `tests-due`.
 - Stop: while the flag is set, the tests must pass. A pass deletes the flag.
-- After 3 blocked stops, LoopGuard lets the agent stop. The flag stays.
+- After 3 blocked stops, Limit lets the agent stop. The flag stays.
 - Start of a later session: the flag is still there. The agent gets a note, and
   it cannot stop until the tests pass, also when it changes no file.
 
@@ -16,7 +16,7 @@ Copilot CLI has no context channel on session-start. Remove the note there.
 """
 
 import agent_actions as aa
-from agent_actions.processes import AddContext, LoopGuard, RequireTests, SetFlag, clear_on_pass
+from agent_actions.processes import AddContext, Limit, RequireTests, SetFlag, clear_on_pass
 from agent_actions.processes.paths import matching_pattern, relative_path
 
 SOURCES = ["src/**", "tests/**"]
@@ -44,7 +44,7 @@ def edits_a_source_file(event: aa.HookInput) -> bool:
 context.add(SetFlag(flags, "tests-due", on=[aa.Hook.POST_TOOL]), when=edits_a_source_file)
 
 context.add(
-    LoopGuard(RequireTests(command_runner=clear_on_pass(flags, "tests-due"))),
+    Limit(RequireTests(command_runner=clear_on_pass(flags, "tests-due")), max_in_a_row=3),
     when=lambda _: flags.get("tests-due"),
 )
 

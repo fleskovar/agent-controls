@@ -74,7 +74,7 @@ reads that report.
    ```python
    SOURCE = str(Path("src").resolve())
    context.add(
-       LoopGuard(
+       Limit(
            RequireCommand(
                [
                    sys.executable,
@@ -89,7 +89,8 @@ reads that report.
                ],
                reason="Add tests for the lines without coverage. Do not change or delete tests.",
                name="coverage",
-           )
+           ),
+           max_in_a_row=3,
        )
    )
    ```

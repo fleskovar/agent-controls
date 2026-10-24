@@ -85,7 +85,7 @@ def check_result(
     process: Process, result: ProcessResult, event: HookInput, capability: Capability
 ) -> None:
     """Raise when a result cannot reach the agent. This check keeps failures loud."""
-    deliverable = process.verdicts & capability.verdicts
+    deliverable = process.needs(event.hook).verdicts & capability.verdicts
     if result.verdict not in deliverable:
         raise IncompatibleResultError(
             f"Process '{process.label}' returned '{result.verdict}' on '{event.hook}' for "
@@ -116,7 +116,7 @@ def _run_guarded(
         raise
     except Exception as error:
         lines.append(f"[{process.label}] {traceback.format_exc().rstrip()}")
-        if Verdict.BLOCK not in capability.verdicts or Verdict.BLOCK not in process.verdicts:
+        if Verdict.BLOCK not in capability.verdicts & process.needs(event.hook).verdicts:
             raise ProcessFailedError(
                 f"Process '{process.label}' failed on '{event.hook}': "
                 f"{type(error).__name__}: {error}"

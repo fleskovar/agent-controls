@@ -31,7 +31,7 @@ Create `agent_checks.py` in the project root:
 
 ```python
 import agent_actions as aa
-from agent_actions.processes import BlockReads, BlockWrites, LoopGuard, RequireTests
+from agent_actions.processes import BlockReads, BlockWrites, Limit, RequireTests
 
 context = aa.get_current_context()
 
@@ -42,7 +42,7 @@ context.add(BlockWrites(["tests/**"]))
 context.add(BlockReads([".env", "secrets/**"]))
 
 # The agent does not finish while the tests fail, but it does not retry for ever.
-context.add(LoopGuard(RequireTests(), max_blocks=3))
+context.add(Limit(RequireTests(), max_in_a_row=3))
 
 aa.run(context)
 ```

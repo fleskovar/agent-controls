@@ -21,7 +21,7 @@ import agent_actions as aa
 from agent_actions.processes import (
     BlockWrites,
     CheckAfterEdit,
-    LoopGuard,
+    Limit,
     PytestCoverage,
     RequireCommand,
     RevertWrites,
@@ -87,16 +87,19 @@ context.add(
     )
 )
 
-# 3. When the agent wants to stop. LoopGuard allows the stop after 3 blocked stops
+# 3. When the agent wants to stop. Limit allows the stop after 3 blocked stops
 #    in a row, so the agent cannot loop.
-context.add(LoopGuard(RequireCommand([PYTHON, "-m", "ruff", "check", *LINT_PATHS], name="lint")))
 context.add(
-    LoopGuard(
+    Limit(RequireCommand([PYTHON, "-m", "ruff", "check", *LINT_PATHS], name="lint"), max_in_a_row=3)
+)
+context.add(
+    Limit(
         RequireCommand(
             [PYTHON, "-m", "mypy"],
             reason="Fix the type errors. Do not add `# type: ignore`.",
             name="types",
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 #    The coverage gate also fails when a test fails. Without a fixed minimum, its
@@ -107,6 +110,6 @@ coverage = PytestCoverage(
 )
 if session is not None:
     context.add(coverage.baseline())
-context.add(LoopGuard(coverage))
+context.add(Limit(coverage, max_in_a_row=3))
 
 aa.run(context)

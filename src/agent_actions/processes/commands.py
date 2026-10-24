@@ -103,7 +103,7 @@ def event_json(event: HookInput) -> str:
 class RequireCommand(StopProcess):
     """Blocks the stop while a command fails, and gives the command output to the agent.
 
-    Use it for linters, type checkers or builds. Wrap it in LoopGuard to limit retries.
+    Use it for linters, type checkers or builds. Wrap it in Limit to limit retries.
     """
 
     def __init__(

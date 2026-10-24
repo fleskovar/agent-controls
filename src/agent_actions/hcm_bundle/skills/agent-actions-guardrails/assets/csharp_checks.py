@@ -19,7 +19,7 @@ from agent_actions.processes import (
     BlockWrites,
     CheckAfterEdit,
     DotnetCoverage,
-    LoopGuard,
+    Limit,
     RequireCommand,
     RevertWrites,
     RunCommand,
@@ -77,24 +77,26 @@ context.add(
     )
 )
 
-# 4. When the agent wants to stop. LoopGuard allows the stop after 3 blocked stops
+# 4. When the agent wants to stop. Limit allows the stop after 3 blocked stops
 #    in a row, so the agent cannot loop.
 context.add(
-    LoopGuard(
+    Limit(
         RequireCommand(
             ["dotnet", "format", "--verify-no-changes"],
             reason="Run `dotnet format`. Then fix the problems that it cannot fix.",
             name="format-check",
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 context.add(
-    LoopGuard(
+    Limit(
         RequireCommand(
             ["dotnet", "build", "--nologo", "-warnaserror"],
             reason="Fix the errors and the warnings. Do not disable or suppress a warning.",
             name="build",
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 #    The coverage gate also fails when a test fails. coverlet.collector, which the
@@ -105,6 +107,6 @@ session = context.session_flags if COVERAGE_MINIMUM is None else None
 coverage = DotnetCoverage(session, minimum=COVERAGE_MINIMUM, name="tests-and-coverage")
 if session is not None:
     context.add(coverage.baseline())
-context.add(LoopGuard(coverage))
+context.add(Limit(coverage, max_in_a_row=3))
 
 aa.run(context)

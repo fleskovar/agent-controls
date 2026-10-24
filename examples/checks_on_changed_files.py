@@ -16,7 +16,7 @@ import sys
 
 import agent_actions as aa
 from agent_actions.processes import (
-    LoopGuard,
+    Limit,
     RequireCommand,
     RequireTests,
     SetFlag,
@@ -40,29 +40,31 @@ context.add(SetFlag(session, "baseline", git_snapshot, keep=True))
 # does not run, and the stop is free.
 changed_python = on_changed_paths(session, ["*.py"])
 context.add(
-    LoopGuard(
+    Limit(
         RequireCommand(
             [PYTHON, "-m", "ruff", "format", "--check", "{paths}"],
             reason="Run `ruff format` on these files.",
             on=STOPS,
             name="format",
             command_runner=changed_python,
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 context.add(
-    LoopGuard(
+    Limit(
         RequireCommand(
             [PYTHON, "-m", "ruff", "check", "{paths}"],
             on=STOPS,
             name="lint",
             command_runner=changed_python,
-        )
+        ),
+        max_in_a_row=3,
     )
 )
 
 context.add(
-    LoopGuard(RequireTests(on=STOPS)),
+    Limit(RequireTests(on=STOPS), max_in_a_row=3),
     when=lambda event: changed_paths(event.root, session.get("baseline"), SOURCES),
 )
 

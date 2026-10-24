@@ -21,6 +21,7 @@ features that let a guardrail react to the context, not only to one hook call:
 | [read_before_write.py](read_before_write.py) | The agent cannot change `src/` before it reads the architecture guide. | session: `guide-read` | no |
 | [change_budget_per_prompt.py](change_budget_per_prompt.py) | When one prompt changed 10 files, the harness asks the user before the next write. | session: `turn` | yes |
 | [paired_changes.py](paired_changes.py) | A change of the API needs a change of the documentation. A change of the dependencies needs a changelog entry. | session: `baseline` | yes |
+| [exit_strategies.py](exit_strategies.py) | After 5 failed stops in a row, the agent can stop and ask for help. The next session gets a review note. After 2 denied writes to `migrations/`, the user decides. | project: `needs-review` | no |
 | [human_switches.py](human_switches.py) | A person edits `.hooks/flags.json` to freeze the source code, or to give each session a note. | project: `freeze`, `note` | no |
 
 An example with "yes" in the Git column needs a git repository with one commit

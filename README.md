@@ -11,8 +11,8 @@ state between calls, and records each call under `.hooks/`.
 - Flags keep state between processes and between sessions. A `when` condition
   starts a process only when a flag, or a change in the work tree, asks for it.
 - Included processes: path guards, shell guard, required tests and commands,
-  coverage gate, loop guard, post-edit check, revert of protected files, context
-  injection, tool call budget, flags and git snapshots.
+  coverage gate, limits with exit strategies, post-edit check, revert of
+  protected files, context injection, tool call budget, flags and git snapshots.
 - One runtime dependency: GitPython. Python 3.11 or later.
 
 ## Quick start
@@ -27,12 +27,12 @@ state between calls, and records each call under `.hooks/`.
 
    ```python
    import agent_actions as aa
-   from agent_actions.processes import BlockReads, BlockWrites, LoopGuard, RequireTests
+   from agent_actions.processes import BlockReads, BlockWrites, Limit, RequireTests
 
    context = aa.get_current_context()
    context.add(BlockWrites(["tests/**"]))
    context.add(BlockReads([".env", "secrets/**"]))
-   context.add(LoopGuard(RequireTests(), max_blocks=3))
+   context.add(Limit(RequireTests(), max_in_a_row=3))
    aa.run(context)
    ```
 

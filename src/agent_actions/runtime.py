@@ -107,10 +107,11 @@ def _hook_problems(process: Process, hook: Hook, adapter: HarnessAdapter) -> lis
     elif capability is None:
         problems.append(f"harness '{adapter.harness}' has no '{hook}' hook")
     else:
-        missing = sorted(process.verdicts - capability.verdicts)
+        needs = process.needs(hook)
+        missing = sorted(needs.verdicts - capability.verdicts)
         if missing:
             problems.append(f"'{hook}' cannot deliver the verdicts {', '.join(missing)}")
-        if process.uses_context and not capability.context:
+        if needs.context and not capability.context:
             problems.append(f"'{hook}' has no channel for context")
     return problems
 
