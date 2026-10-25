@@ -2,7 +2,7 @@ name: agent-controls
 version: 0.1.0
 description: Skills and runner templates to install, write and manage Agent Controls hooks, processes and guardrails in a project of any language. Includes the patterns for checks that depend on the context - flags, conditions and git snapshots. Install it in a project that uses the agent_controls Python package.
 author: fleskovar
-homepage: https://github.com/fleskovar/agent_actions
+homepage: https://github.com/fleskovar/agent-controls
 tags: [agent-controls, hooks, guardrails, testing, coverage, linting, flags]
 # Agent Controls has hook adapters for these harnesses only.
 targets: [claude-code, copilot, copilot-cli]

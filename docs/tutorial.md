@@ -16,7 +16,7 @@ be the one that has the package.
 cd my-project
 python -m venv .venv
 .venv/Scripts/activate           # Windows. Linux and macOS: source .venv/bin/activate
-pip install git+https://github.com/fleskovar/agent_actions
+pip install git+https://github.com/fleskovar/agent-controls
 ```
 
 Check the command:

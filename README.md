@@ -20,7 +20,7 @@ state between calls, and records each call under `.hooks/`.
 1. Install the package in the virtual environment of your project:
 
    ```bash
-   pip install git+https://github.com/fleskovar/agent_actions
+   pip install git+https://github.com/fleskovar/agent-controls
    ```
 
 2. Create a runner file, for example `agent_checks.py`:
