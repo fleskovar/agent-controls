@@ -3,7 +3,8 @@ CASE ?=
 K ?=
 CASE_TEST := tests/protected/cases/test_hook_cases.py::test_hook_case_matches_its_baseline
 
-.PHONY: test test-unit test-integration test-cases test-case debug-case debug-test bless-case lint typecheck
+.PHONY: test test-unit test-integration test-cases test-case debug-case debug-test bless-case lint typecheck \
+        publish version-minor version-major
 
 ## Everything that CI runs.
 test: lint typecheck
@@ -40,3 +41,19 @@ lint:
 
 typecheck:
 	$(PYTHON) -m mypy
+
+# A release is a pushed v* tag: .github/workflows/publish.yml tests, builds and
+# uploads it to PyPI. If version-minor or version-major set a version that has
+# no release yet, publish releases that version without a bump.
+
+## Bump the patch, commit, tag and push. GitHub Actions publishes to PyPI.
+publish:
+	$(PYTHON) scripts/release.py publish
+
+## Start the next minor version. Commits, does not tag.
+version-minor:
+	$(PYTHON) scripts/release.py bump minor
+
+## Start the next major version. Commits, does not tag.
+version-major:
+	$(PYTHON) scripts/release.py bump major

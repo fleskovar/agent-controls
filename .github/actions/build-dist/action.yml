@@ -1,0 +1,39 @@
+name: Build distributions
+description: >
+  Build and validate the wheel + sdist. The PyPI release uses this action, so
+  a CI job that uses it too tests the artifact that ships.
+
+inputs:
+  python-version:
+    description: Python version used to build the distributions.
+    required: false
+    default: "3.12"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Build wheel + sdist
+      run: |
+        python -m pip install --upgrade pip build twine
+        python -m build
+        python -m twine check dist/*
+      shell: bash
+
+    # `agent_controls hcm init` installs the bundle from package data. A wheel
+    # without it still installs, and PyPI does not allow a re-upload.
+    - name: Verify the wheel ships the hcm bundle
+      run: |
+        python - <<'EOF'
+        import pathlib, sys, zipfile
+        wheels = list(pathlib.Path("dist").glob("*.whl"))
+        if len(wheels) != 1:
+            sys.exit(f"expected one wheel in dist/, found {[w.name for w in wheels]}")
+        if "agent_controls/hcm_bundle/hcm.yaml" not in zipfile.ZipFile(wheels[0]).namelist():
+            sys.exit(f"{wheels[0].name}: the hcm bundle is missing")
+        print(f"{wheels[0].name}: hcm bundle present")
+        EOF
+      shell: bash
