@@ -40,7 +40,7 @@ The hooks and the limits of each harness are in [the harness page](./harnesses.m
 
    ```bash
    python -m venv .venv
-   .venv/Scripts/python -m pip install git+https://github.com/fleskovar/agent-controls
+   .venv/Scripts/python -m pip install agent-controls
    ```
 
    On Linux and macOS, the interpreter is `.venv/bin/python`. Use this
@@ -109,7 +109,7 @@ make the change, or to remove the pattern.
 ## Upgrade
 
 1. Upgrade the package in the virtual environment of the project:
-   `python -m pip install --upgrade git+https://github.com/fleskovar/agent-controls`.
+   `python -m pip install --upgrade agent-controls`.
 2. Update the skills of this bundle. The command registers the bundle of the new
    package version in hcm, then runs `hcm update agent-controls` in the project.
 

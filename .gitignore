@@ -24,3 +24,5 @@ CLAUDE.md
 # Test and coverage data
 .coverage
 .testmondata*
+dist/
+build/

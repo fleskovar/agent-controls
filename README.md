@@ -20,7 +20,7 @@ state between calls, and records each call under `.hooks/`.
 1. Install the package in the virtual environment of your project:
 
    ```bash
-   pip install git+https://github.com/fleskovar/agent-controls
+   pip install agent-controls
    ```
 
 2. Create a runner file, for example `agent_checks.py`:
@@ -49,7 +49,7 @@ state between calls, and records each call under `.hooks/`.
    with a reason. When it tries to stop while tests fail, it continues, at most
    three times.
 
-The [tutorial](docs/tutorial.md) explains each step and shows how to write your
+The [tutorial](https://github.com/fleskovar/agent-controls/blob/main/docs/tutorial.md) explains each step and shows how to write your
 own process.
 
 ## Supported harnesses
@@ -60,7 +60,7 @@ own process.
 | `vscode` | `.github/hooks/agent-controls-vscode.json` | all except `session-end` |
 | `copilot-cli` | `.github/hooks/agent-controls-copilot-cli.json` | all except `subagent-start` and `pre-compact` |
 
-[docs/data-model.md](docs/data-model.md) lists the verdicts and context channels
+[docs/data-model.md](https://github.com/fleskovar/agent-controls/blob/main/docs/data-model.md) lists the verdicts and context channels
 per harness and hook.
 
 ## Write a process
@@ -155,14 +155,14 @@ the package version. Change the two versions together. When hcm is installed,
 
 ## Documentation
 
-- [Tutorial](docs/tutorial.md)
-- [Included processes](docs/processes.md)
-- [Examples](examples/README.md): runner files that use flags, conditions and
+- [Tutorial](https://github.com/fleskovar/agent-controls/blob/main/docs/tutorial.md)
+- [Included processes](https://github.com/fleskovar/agent-controls/blob/main/docs/processes.md)
+- [Examples](https://github.com/fleskovar/agent-controls/blob/main/examples/README.md): runner files that use flags, conditions and
   git snapshots
-- [Architecture and design](docs/architecture.md)
-- [Data model per harness](docs/data-model.md)
-- [Add a harness](docs/adding-a-harness.md)
-- [Requirements](docs/requirements.md), including known limitations
+- [Architecture and design](https://github.com/fleskovar/agent-controls/blob/main/docs/architecture.md)
+- [Data model per harness](https://github.com/fleskovar/agent-controls/blob/main/docs/data-model.md)
+- [Add a harness](https://github.com/fleskovar/agent-controls/blob/main/docs/adding-a-harness.md)
+- [Requirements](https://github.com/fleskovar/agent-controls/blob/main/docs/requirements.md), including known limitations
 
 ## Development
 
@@ -180,7 +180,7 @@ make debug-test K=test_most_restrictive_verdict_wins
 ```
 
 Each folder in `tests/protected/cases/` is one behaviour: `inputs/`, `outputs/` and a
-`README.md` walkthrough. The [case index](tests/protected/cases/README.md) lists all of
+`README.md` walkthrough. The [case index](https://github.com/fleskovar/agent-controls/blob/main/tests/protected/cases/README.md) lists all of
 them and what each one pins. To add a case, add a folder. In VS Code, the launch
 configuration "Debug one hook case" runs one case under the debugger.
 
