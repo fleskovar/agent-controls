@@ -1,5 +1,5 @@
-import agent_actions as aa
-from agent_actions.processes import BlockWrites, LoopGuard, RequireTests
+import agent_controls as aa
+from agent_controls.processes import BlockWrites, LoopGuard, RequireTests
 
 context = aa.get_current_context()
 context.add(BlockWrites(["tests/**"]))

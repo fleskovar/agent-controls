@@ -1,5 +1,5 @@
-import agent_actions as aa
-from agent_actions.processes import CommandOutcome, RequireCommand
+import agent_controls as aa
+from agent_controls.processes import CommandOutcome, RequireCommand
 
 
 def failing_ruff(command, cwd, timeout, stdin):

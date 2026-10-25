@@ -33,11 +33,11 @@ from typing import Any, Final
 
 import git
 
-from agent_actions.app import install_hooks, parse_payload, run_hook
-from agent_actions.harnesses import make_adapter
-from agent_actions.model import Harness, Hook
-from agent_actions.session import HOOKS_DIR, STATE_FILE, SessionStore
-from agent_actions.storage import read_json
+from agent_controls.app import install_hooks, parse_payload, run_hook
+from agent_controls.harnesses import make_adapter
+from agent_controls.model import Harness, Hook
+from agent_controls.session import HOOKS_DIR, STATE_FILE, SessionStore
+from agent_controls.storage import read_json
 
 CASES_ROOT: Final = Path(__file__).resolve().parent
 INPUTS_DIR: Final = "inputs"

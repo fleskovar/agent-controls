@@ -3,9 +3,9 @@
 import pytest
 from builders import a_tool_event, an_event
 
-from agent_actions.errors import IncompatibleProcessError
-from agent_actions.harnesses import make_adapter
-from agent_actions.model import (
+from agent_controls.errors import IncompatibleProcessError
+from agent_controls.harnesses import make_adapter
+from agent_controls.model import (
     Harness,
     Hook,
     HookInput,
@@ -15,10 +15,10 @@ from agent_actions.model import (
     allow,
     block,
 )
-from agent_actions.process import StopProcess
-from agent_actions.processes import BlockWrites, Limit
-from agent_actions.processes.limits import LIMIT_ADVICE, RESET_REASON, problem_text
-from agent_actions.runtime import Context
+from agent_controls.process import StopProcess
+from agent_controls.processes import BlockWrites, Limit
+from agent_controls.processes.limits import LIMIT_ADVICE, RESET_REASON, problem_text
+from agent_controls.runtime import Context
 
 STOP = an_event(Hook.STOP)
 PROMPT = an_event(Hook.USER_PROMPT, prompt="try X")

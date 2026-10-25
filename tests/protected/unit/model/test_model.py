@@ -1,6 +1,6 @@
 import pytest
 
-from agent_actions.model import (
+from agent_controls.model import (
     Harness,
     Hook,
     HookInput,

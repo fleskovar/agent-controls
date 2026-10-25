@@ -24,7 +24,7 @@ this framework exists to remove.
 
 ## 2. Write the adapter
 
-Copy `src/agent_actions/harnesses/copilot_cli.py`, which is the most independent
+Copy `src/agent_controls/harnesses/copilot_cli.py`, which is the most independent
 of the three. Implement the `HarnessAdapter` protocol from `harnesses/base.py`:
 
 ```python
@@ -65,12 +65,12 @@ Rules that keep the adapter correct:
 ## 3. Register it
 
 ```python
-# src/agent_actions/model.py
+# src/agent_controls/model.py
 class Harness(StrEnum):
     ...
     MY_HARNESS = "my-harness"
 
-# src/agent_actions/harnesses/__init__.py
+# src/agent_controls/harnesses/__init__.py
 _ADAPTERS: Final[Mapping[Harness, HarnessAdapter]] = {
     ...
     Harness.MY_HARNESS: MyHarnessAdapter(),

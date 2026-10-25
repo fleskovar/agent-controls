@@ -1,5 +1,5 @@
-import agent_actions as aa
-from agent_actions.processes import CommandOutcome, RunCommand
+import agent_controls as aa
+from agent_controls.processes import CommandOutcome, RunCommand
 
 
 def failing_dotnet_test(command, cwd, timeout, stdin):

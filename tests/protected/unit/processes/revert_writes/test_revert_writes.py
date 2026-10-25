@@ -5,11 +5,11 @@ import git
 import pytest
 from builders import an_event
 
-from agent_actions.harnesses import make_adapter
-from agent_actions.model import Harness, Hook, HookInput, allow
-from agent_actions.processes import RevertWrites
-from agent_actions.processes.paths import REVERT_WARNING, START_WARNING
-from agent_actions.runtime import compatibility_problems
+from agent_controls.harnesses import make_adapter
+from agent_controls.model import Harness, Hook, HookInput, allow
+from agent_controls.processes import RevertWrites
+from agent_controls.processes.paths import REVERT_WARNING, START_WARNING
+from agent_controls.runtime import compatibility_problems
 
 
 @pytest.fixture

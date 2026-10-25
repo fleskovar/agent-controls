@@ -1,5 +1,5 @@
-import agent_actions as aa
-from agent_actions.processes import BlockShellCommands
+import agent_controls as aa
+from agent_controls.processes import BlockShellCommands
 
 context = aa.get_current_context()
 context.add(

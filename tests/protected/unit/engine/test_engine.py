@@ -1,12 +1,12 @@
 import pytest
 from builders import an_event
 
-from agent_actions.engine import execute
-from agent_actions.errors import IncompatibleResultError, ProcessFailedError
-from agent_actions.harnesses import make_adapter
-from agent_actions.model import Harness, Hook, HookInput, ProcessResult, Verdict, allow, ask, block
-from agent_actions.process import ANY_VERDICT, StartProcess, StopProcess
-from agent_actions.runtime import log
+from agent_controls.engine import execute
+from agent_controls.errors import IncompatibleResultError, ProcessFailedError
+from agent_controls.harnesses import make_adapter
+from agent_controls.model import Harness, Hook, HookInput, ProcessResult, Verdict, allow, ask, block
+from agent_controls.process import ANY_VERDICT, StartProcess, StopProcess
+from agent_controls.runtime import log
 
 CLAUDE = make_adapter(Harness.CLAUDE).capabilities
 STOP = an_event(Hook.STOP)

@@ -16,8 +16,8 @@ The counts are per agent. Each subagent has its own counts.
 Copilot CLI has no context channel on session-start. Remove the note there.
 """
 
-import agent_actions as aa
-from agent_actions.processes import (
+import agent_controls as aa
+from agent_controls.processes import (
     AddContext,
     BlockWrites,
     Limit,

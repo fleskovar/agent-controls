@@ -15,8 +15,8 @@ are in it. Without a snapshot, each uncommitted change is in the count.
 from collections.abc import Mapping
 from typing import Any
 
-import agent_actions as aa
-from agent_actions.processes import SetFlag, changed_paths, git_snapshot
+import agent_controls as aa
+from agent_controls.processes import SetFlag, changed_paths, git_snapshot
 
 MAX_FILES = 10
 

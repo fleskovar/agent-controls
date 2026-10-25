@@ -1,9 +1,9 @@
 import pytest
 from builders import an_event
 
-from agent_actions.errors import StateError
-from agent_actions.model import Hook, HookInput, ProcessResult, allow
-from agent_actions.process import PreToolProcess, StopProcess
+from agent_controls.errors import StateError
+from agent_controls.model import Hook, HookInput, ProcessResult, allow
+from agent_controls.process import PreToolProcess, StopProcess
 
 
 class Counter(StopProcess):

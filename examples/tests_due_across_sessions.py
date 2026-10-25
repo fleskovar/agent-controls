@@ -15,9 +15,9 @@ change that a shell command made. `checks_on_changed_files.py` shows the git for
 Copilot CLI has no context channel on session-start. Remove the note there.
 """
 
-import agent_actions as aa
-from agent_actions.processes import AddContext, Limit, RequireTests, SetFlag, clear_on_pass
-from agent_actions.processes.paths import matching_pattern, relative_path
+import agent_controls as aa
+from agent_controls.processes import AddContext, Limit, RequireTests, SetFlag, clear_on_pass
+from agent_controls.processes.paths import matching_pattern, relative_path
 
 SOURCES = ["src/**", "tests/**"]
 NOTE = (

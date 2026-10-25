@@ -10,11 +10,11 @@ from typing import Any
 import git
 import pytest
 
-from agent_actions.app import install_hooks, run_hook
-from agent_actions.harnesses import make_adapter
-from agent_actions.hcm import BUNDLE_DIR
-from agent_actions.model import Harness, Hook
-from agent_actions.runtime import load_runner
+from agent_controls.app import install_hooks, run_hook
+from agent_controls.harnesses import make_adapter
+from agent_controls.hcm import BUNDLE_DIR
+from agent_controls.model import Harness, Hook
+from agent_controls.runtime import load_runner
 
 EXAMPLES = Path(__file__).parents[2] / "examples"
 RUNNER = "checks.py"
@@ -191,10 +191,10 @@ def test_each_runner_file_in_the_bundle_pages_loads_for_claude(label: str, tmp_p
 
 
 def test_the_bundle_shows_each_pattern_of_the_examples() -> None:
-    page = (BUNDLE_DIR / "skills/agent-actions-guardrails/flags-and-conditions.md").read_text(
+    page = (BUNDLE_DIR / "skills/agent-controls-guardrails/flags-and-conditions.md").read_text(
         "utf-8"
     )
-    skill = (BUNDLE_DIR / "skills/agent-actions-processes/SKILL.md").read_text("utf-8")
+    skill = (BUNDLE_DIR / "skills/agent-controls-processes/SKILL.md").read_text("utf-8")
 
     assert [f"## Pattern {number}:" in page for number in range(1, 7)] == [True] * 6
     assert "class ChangeBudget(aa.PreToolProcess):" in page

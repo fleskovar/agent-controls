@@ -1,9 +1,9 @@
 import pytest
 from builders import a_tool_event, an_event
 
-from agent_actions.model import ToolKind, Verdict, allow, block
-from agent_actions.processes import BlockReads, BlockWrites
-from agent_actions.processes.paths import (
+from agent_controls.model import ToolKind, Verdict, allow, block
+from agent_controls.processes import BlockReads, BlockWrites
+from agent_controls.processes.paths import (
     READ_REASON,
     WRITE_REASON,
     matching_pattern,

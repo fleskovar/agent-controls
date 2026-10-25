@@ -23,7 +23,7 @@ place where that difference is visible in data.
 1. Install loads the runner file with no hook and no payload, and asks the
    context which hooks its processes use: `pre-tool` and `post-tool`, in
    lifecycle order.
-2. For each hook, the argument list is the interpreter, `-m agent_actions run`,
+2. For each hook, the argument list is the interpreter, `-m agent_controls run`,
    the runner file, `--harness vscode` and `--hook <hook>`.
 3. The interpreter path contains a space, so the unquoted form is not safe. The
    POSIX form quotes that one argument and leaves the rest bare.

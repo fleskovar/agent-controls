@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m agent_actions run runner.py --harness claude --hook pre-tool",
+            "command": "python -m agent_controls run runner.py --harness claude --hook pre-tool",
             "timeout": 300
           }
         ]
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m agent_actions run runner.py --harness claude --hook stop",
+            "command": "python -m agent_controls run runner.py --harness claude --hook stop",
             "timeout": 300
           }
         ]

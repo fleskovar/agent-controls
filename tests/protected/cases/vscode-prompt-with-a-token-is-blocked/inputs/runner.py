@@ -1,6 +1,6 @@
 import re
 
-import agent_actions as aa
+import agent_controls as aa
 
 TOKEN = re.compile(r"\b(sk-[A-Za-z0-9]{8,}|ghp_[A-Za-z0-9]{8,})\b")
 

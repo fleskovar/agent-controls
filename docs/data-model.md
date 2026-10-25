@@ -161,8 +161,8 @@ Path search is recursive, so a tool that edits several files in one call, such a
 | Harness | File | Shape |
 | --- | --- | --- |
 | `claude` | `.claude/settings.json` | `hooks.<Event>[] = {matcher?, hooks: [{type, command, timeout}]}`; `matcher: "*"` on tool events |
-| `vscode` | `.github/hooks/agent-actions-vscode.json` | `hooks.<Event>[] = {type, command, windows, timeout}` |
-| `copilot-cli` | `.github/hooks/agent-actions-copilot-cli.json` | `version: 1`, `hooks.<event>[] = {type, bash, powershell, cwd, timeoutSec}` |
+| `vscode` | `.github/hooks/agent-controls-vscode.json` | `hooks.<Event>[] = {type, command, windows, timeout}` |
+| `copilot-cli` | `.github/hooks/agent-controls-copilot-cli.json` | `version: 1`, `hooks.<event>[] = {type, bash, powershell, cwd, timeoutSec}` |
 
 `install` writes one entry per hook that the runner file uses, replaces the
 entries of the same runner file, and keeps every other key of the file.

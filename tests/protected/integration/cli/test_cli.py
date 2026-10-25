@@ -6,8 +6,8 @@ from pathlib import Path
 import git
 import pytest
 
-RUNNER = """import agent_actions as aa
-from agent_actions.processes import BlockWrites
+RUNNER = """import agent_controls as aa
+from agent_controls.processes import BlockWrites
 
 context = aa.get_current_context()
 context.add(BlockWrites(["tests/**"]))
@@ -17,7 +17,7 @@ aa.run(context)
 
 def run_cli(arguments: list[str], cwd: Path, stdin: str = "") -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-m", "agent_actions", *arguments],
+        [sys.executable, "-m", "agent_controls", *arguments],
         cwd=cwd,
         input=stdin,
         capture_output=True,
@@ -81,14 +81,14 @@ def test_run_reads_the_payload_from_a_file_and_allows_other_paths(project: Path)
 
 
 def test_runner_file_without_a_run_call_exits_one(project: Path) -> None:
-    (project / "broken.py").write_text("import agent_actions as aa\n", encoding="utf-8")
+    (project / "broken.py").write_text("import agent_controls as aa\n", encoding="utf-8")
 
     completed = run_cli(
         ["run", "broken.py", "--harness", "claude", "--hook", "stop"], project, "{}"
     )
 
     assert completed.returncode == 1
-    assert "did not call agent_actions.run" in completed.stderr
+    assert "did not call agent_controls.run" in completed.stderr
 
 
 def test_install_writes_the_configuration_with_this_interpreter(project: Path) -> None:
@@ -96,7 +96,7 @@ def test_install_writes_the_configuration_with_this_interpreter(project: Path) -
 
     assert completed.returncode == 0, completed.stderr
     config = json.loads(
-        (project / ".github/hooks/agent-actions-copilot-cli.json").read_text(encoding="utf-8")
+        (project / ".github/hooks/agent-controls-copilot-cli.json").read_text(encoding="utf-8")
     )
     [handler] = config["hooks"]["preToolUse"]
     assert Path(sys.executable).as_posix() in handler["bash"]
@@ -126,11 +126,11 @@ def test_skills_are_copied_into_the_project(project: Path) -> None:
     completed = run_cli(["skills", "--dest", "agent-skills"], project)
 
     assert completed.returncode == 0, completed.stderr
-    assert (project / "agent-skills" / "agent-actions-processes" / "SKILL.md").is_file()
+    assert (project / "agent-skills" / "agent-controls-processes" / "SKILL.md").is_file()
 
 
-REVERT_RUNNER = """import agent_actions as aa
-from agent_actions.processes import RevertWrites
+REVERT_RUNNER = """import agent_controls as aa
+from agent_controls.processes import RevertWrites
 
 context = aa.get_current_context()
 context.add(RevertWrites(["tests/**"]))
@@ -139,8 +139,8 @@ aa.run(context)
 
 COMMAND_RUNNER = """import sys
 
-import agent_actions as aa
-from agent_actions.processes import RunCommand
+import agent_controls as aa
+from agent_controls.processes import RunCommand
 
 context = aa.get_current_context()
 context.add(RunCommand([sys.executable, "check.py"]))

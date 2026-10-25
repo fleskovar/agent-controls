@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 from builders import a_tool_event, an_event
 
-from agent_actions.harnesses import make_adapter
-from agent_actions.model import Harness, Hook, ToolKind, allow, block
-from agent_actions.processes import (
+from agent_controls.harnesses import make_adapter
+from agent_controls.model import Harness, Hook, ToolKind, allow, block
+from agent_controls.processes import (
     CheckAfterEdit,
     CommandOutcome,
     RequireCommand,
@@ -16,7 +16,7 @@ from agent_actions.processes import (
     RunCommand,
     run_subprocess,
 )
-from agent_actions.processes.commands import (
+from agent_controls.processes.commands import (
     NOT_FOUND_EXIT_CODE,
     PYTEST_COMMAND,
     RUN_REASON,
@@ -26,7 +26,7 @@ from agent_actions.processes.commands import (
     event_json,
     with_paths,
 )
-from agent_actions.runtime import compatibility_problems
+from agent_controls.runtime import compatibility_problems
 
 STOP = an_event(Hook.STOP, cwd="/repo/src", root="/repo")
 
@@ -284,6 +284,6 @@ def test_real_subprocess_reports_exit_code_and_output(tmp_path: Path) -> None:
 
 
 def test_missing_program_reports_not_found(tmp_path: Path) -> None:
-    outcome = run_subprocess(["agent-actions-no-such-program"], tmp_path, 60)
+    outcome = run_subprocess(["agent-controls-no-such-program"], tmp_path, 60)
 
     assert outcome.exit_code == NOT_FOUND_EXIT_CODE

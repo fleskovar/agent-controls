@@ -1,10 +1,10 @@
 import pytest
 from builders import a_tool_event, an_event
 
-from agent_actions.model import Hook, HookInput, ProcessResult, ToolKind, Verdict, allow, block
-from agent_actions.process import StopProcess
-from agent_actions.processes import LoopGuard, ToolCallBudget
-from agent_actions.processes.limits import BUDGET_REASON, LOOP_ADVICE
+from agent_controls.model import Hook, HookInput, ProcessResult, ToolKind, Verdict, allow, block
+from agent_controls.process import StopProcess
+from agent_controls.processes import LoopGuard, ToolCallBudget
+from agent_controls.processes.limits import BUDGET_REASON, LOOP_ADVICE
 
 STOP = an_event(Hook.STOP)
 

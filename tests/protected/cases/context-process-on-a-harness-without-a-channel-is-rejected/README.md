@@ -34,7 +34,7 @@ would go nowhere.
 6. No process ran, so state.json holds no step for this call. The raw payload and
    the error are in io.json.
 
-The same error appears during `agent_actions install`, which is where the author
+The same error appears during `agent_controls install`, which is where the author
 meets it first, before any agent runs.
 
 ## Baseline

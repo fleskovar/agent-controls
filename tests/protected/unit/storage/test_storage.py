@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from agent_actions.errors import StateError
-from agent_actions.storage import file_lock, read_json, write_json
+from agent_controls.errors import StateError
+from agent_controls.storage import file_lock, read_json, write_json
 
 
 def test_missing_file_reads_as_an_empty_object(tmp_path: Path) -> None:

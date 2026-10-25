@@ -34,7 +34,7 @@ or more.
 3. Register the hooks:
 
    ```bash
-   agent_actions install agent_checks.py --target claude
+   agent_controls install agent_checks.py --target claude
    ```
 
 4. Start the agent, and give it a task that the docstring of the file describes.

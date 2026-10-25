@@ -1,6 +1,6 @@
 # install-claude-keeps-existing-settings
 
-**Behaviour:** `agent_actions install` adds one hook entry per hook that the
+**Behaviour:** `agent_controls install` adds one hook entry per hook that the
 runner file uses, and leaves every other setting of the file unchanged.
 
 **Why this case exists:** The settings file belongs to the user. An install that
@@ -25,7 +25,7 @@ file, and which entries get a tool matcher.
 2. The context reports the hooks that its processes use, in lifecycle order:
    `pre-tool` from `BlockWrites`, and `stop` from the loop guard, which takes its
    hooks from `RequireTests`.
-3. For each hook, install builds the command `python -m agent_actions run
+3. For each hook, install builds the command `python -m agent_controls run
    runner.py --harness claude --hook <hook>`. The case runner passes `python` as
    the interpreter. A real install passes the absolute path of the interpreter
    that runs it, which is the virtual environment of the project.

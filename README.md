@@ -1,6 +1,6 @@
-# Agent Actions
+# Agent Controls
 
-Agent Actions is a Python SDK and CLI for AI agent lifecycle hooks. You write
+Agent Controls is a Python SDK and CLI for AI agent lifecycle hooks. You write
 guardrails and checks as Python classes. The framework runs them on the hooks of
 Claude Code, VS Code (GitHub Copilot agent) and GitHub Copilot CLI, keeps their
 state between calls, and records each call under `.hooks/`.
@@ -26,8 +26,8 @@ state between calls, and records each call under `.hooks/`.
 2. Create a runner file, for example `agent_checks.py`:
 
    ```python
-   import agent_actions as aa
-   from agent_actions.processes import BlockReads, BlockWrites, Limit, RequireTests
+   import agent_controls as aa
+   from agent_controls.processes import BlockReads, BlockWrites, Limit, RequireTests
 
    context = aa.get_current_context()
    context.add(BlockWrites(["tests/**"]))
@@ -39,7 +39,7 @@ state between calls, and records each call under `.hooks/`.
 3. Install the hooks for your harness:
 
    ```bash
-   agent_actions install agent_checks.py --target claude
+   agent_controls install agent_checks.py --target claude
    ```
 
    The command writes `.claude/settings.json`. The hook commands use the
@@ -57,8 +57,8 @@ own process.
 | Target | Configuration file | Hooks |
 | --- | --- | --- |
 | `claude` | `.claude/settings.json` | all 9 neutral hooks |
-| `vscode` | `.github/hooks/agent-actions-vscode.json` | all except `session-end` |
-| `copilot-cli` | `.github/hooks/agent-actions-copilot-cli.json` | all except `subagent-start` and `pre-compact` |
+| `vscode` | `.github/hooks/agent-controls-vscode.json` | all except `session-end` |
+| `copilot-cli` | `.github/hooks/agent-controls-copilot-cli.json` | all except `subagent-start` and `pre-compact` |
 
 [docs/data-model.md](docs/data-model.md) lists the verdicts and context channels
 per harness and hook.
@@ -66,7 +66,7 @@ per harness and hook.
 ## Write a process
 
 ```python
-import agent_actions as aa
+import agent_controls as aa
 
 
 class NoTodoInFinalAnswer(aa.StopProcess):
@@ -102,53 +102,53 @@ class NoTodoInFinalAnswer(aa.StopProcess):
         main-agent/
             state.json                   state, inputs and outputs per step and process
             io.json                      raw stdin, stdout and exit code per step
-            log.txt                      agent_actions.log() lines
+            log.txt                      agent_controls.log() lines
         Explore_20260915T100512345/      one folder per subagent
 ```
 
-Replay a recorded call with `agent_actions run agent_checks.py --harness claude
+Replay a recorded call with `agent_controls run agent_checks.py --harness claude
 --hook pre-tool --input payload.json`.
 
 ## CLI
 
 | Command | Purpose |
 | --- | --- |
-| `agent_actions run RUNNER --harness H --hook K [--input FILE]` | Run one hook call. The harness calls this. |
-| `agent_actions install RUNNER [--target H] [--timeout S]` | Write the hook configuration. Asks for the harness when `--target` is missing. |
-| `agent_actions sessions` | List recorded sessions, newest first. |
-| `agent_actions hcm init [--dev [PATH]]` | Register the agent bundle of the package in the [hcm](#agent-skills) registry. |
-| `agent_actions hcm update [HCM OPTIONS]` | Register the bundle of the installed package version, then run `hcm update agent-actions` in the project. |
-| `agent_actions skills [--dest DIR]` | Copy the agent skills without hcm (default `.claude/skills`). |
+| `agent_controls run RUNNER --harness H --hook K [--input FILE]` | Run one hook call. The harness calls this. |
+| `agent_controls install RUNNER [--target H] [--timeout S]` | Write the hook configuration. Asks for the harness when `--target` is missing. |
+| `agent_controls sessions` | List recorded sessions, newest first. |
+| `agent_controls hcm init [--dev [PATH]]` | Register the agent bundle of the package in the [hcm](#agent-skills) registry. |
+| `agent_controls hcm update [HCM OPTIONS]` | Register the bundle of the installed package version, then run `hcm update agent-controls` in the project. |
+| `agent_controls skills [--dest DIR]` | Copy the agent skills without hcm (default `.claude/skills`). |
 
 ## Agent skills
 
 The package contains an [hcm](https://github.com/fleskovar/harness_config_manager)
-bundle with the name `agent-actions`. It gives an AI agent the skills to install
-Agent Actions in a project of any language, to configure the checks, and to write
+bundle with the name `agent-controls`. It gives an AI agent the skills to install
+Agent Controls in a project of any language, to configure the checks, and to write
 new processes.
 
 | Skill | Content |
 | --- | --- |
-| `agent-actions-setup` | Install the package, register the hooks, upgrade, and find the cause of a hook problem. |
-| `agent-actions-guardrails` | Tests, a coverage floor, lint, format and protected files. Runner templates for C#, Odin, Julia and Python, and `coverage_floor.py` for Cobertura and LCOV reports. |
-| `agent-actions-processes` | Write and test a new process class. The reference of the included processes. |
+| `agent-controls-setup` | Install the package, register the hooks, upgrade, and find the cause of a hook problem. |
+| `agent-controls-guardrails` | Tests, a coverage floor, lint, format and protected files. Runner templates for C#, Odin, Julia and Python, and `coverage_floor.py` for Cobertura and LCOV reports. |
+| `agent-controls-processes` | Write and test a new process class. The reference of the included processes. |
 
 ```bash
-python -m agent_actions hcm init            # one time for each machine: register the bundle
-hcm install agent-actions -t claude-code    # in each project; also `copilot` and `copilot-cli`
+python -m agent_controls hcm init            # one time for each machine: register the bundle
+hcm install agent-controls -t claude-code    # in each project; also `copilot` and `copilot-cli`
 ```
 
 After an upgrade of the package, update the bundle in each project:
 
 ```bash
-python -m agent_actions hcm update -t claude-code --no-prompt
+python -m agent_controls hcm update -t claude-code --no-prompt
 ```
 
 The commands need the `hcm` command: `npm install -g harness-config-manager`.
 
-To work on the bundle, register the working copy with `python -m agent_actions
-hcm init --dev`. hcm then reads `src/agent_actions/hcm_bundle/` in place, and
-`hcm update agent-actions` in a test project installs each edit. `make test`
+To work on the bundle, register the working copy with `python -m agent_controls
+hcm init --dev`. hcm then reads `src/agent_controls/hcm_bundle/` in place, and
+`hcm update agent-controls` in a test project installs each edit. `make test`
 loads each runner template in each harness, and compares the bundle version with
 the package version. Change the two versions together. When hcm is installed,
 `make test` also checks the bundle with `hcm validate` and `hcm refs check`.

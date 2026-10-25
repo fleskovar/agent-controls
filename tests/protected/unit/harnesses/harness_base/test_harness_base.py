@@ -3,9 +3,9 @@ from typing import Any
 
 import pytest
 
-from agent_actions.harnesses.base import Shell, as_mapping, command_line, find_paths
-from agent_actions.harnesses.claude import TOOLS
-from agent_actions.model import ToolKind
+from agent_controls.harnesses.base import Shell, as_mapping, command_line, find_paths
+from agent_controls.harnesses.claude import TOOLS
+from agent_controls.model import ToolKind
 
 
 def test_paths_are_found_at_any_depth_in_order_without_duplicates() -> None:
@@ -36,14 +36,14 @@ def test_tool_arguments_become_a_mapping(value: Any, expected: Mapping[str, Any]
     ("argv", "shell", "expected"),
     [
         (
-            ("C:/venv/python.exe", "-m", "agent_actions"),
+            ("C:/venv/python.exe", "-m", "agent_controls"),
             Shell.POSIX,
-            "C:/venv/python.exe -m agent_actions",
+            "C:/venv/python.exe -m agent_controls",
         ),
         (
-            ("C:/venv/python.exe", "-m", "agent_actions"),
+            ("C:/venv/python.exe", "-m", "agent_controls"),
             Shell.POWERSHELL,
-            "C:/venv/python.exe -m agent_actions",
+            "C:/venv/python.exe -m agent_controls",
         ),
         (("C:/My Tools/python.exe", "run"), Shell.POSIX, "'C:/My Tools/python.exe' run"),
         (("C:/My Tools/python.exe", "run"), Shell.POWERSHELL, "& 'C:/My Tools/python.exe' 'run'"),

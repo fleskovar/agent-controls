@@ -3,8 +3,8 @@ from typing import Any
 
 import pytest
 
-from agent_actions.harnesses.claude import ClaudeAdapter
-from agent_actions.model import Hook, ProcessResult, ToolCall, ToolKind, allow, ask, block
+from agent_controls.harnesses.claude import ClaudeAdapter
+from agent_controls.model import Hook, ProcessResult, ToolCall, ToolKind, allow, ask, block
 
 ADAPTER = ClaudeAdapter()
 
@@ -126,7 +126,7 @@ def test_install_keeps_foreign_settings_and_replaces_its_own_entries() -> None:
                     "hooks": [
                         {
                             "type": "command",
-                            "command": "old/python -m agent_actions run checks.py --hook pre-tool",
+                            "command": "old/python -m agent_controls run checks.py --hook pre-tool",
                         }
                     ],
                 },
@@ -136,7 +136,7 @@ def test_install_keeps_foreign_settings_and_replaces_its_own_entries() -> None:
                     "hooks": [
                         {
                             "type": "command",
-                            "command": "py -m agent_actions run checks.py --hook stop",
+                            "command": "py -m agent_controls run checks.py --hook stop",
                         }
                     ]
                 }
@@ -146,7 +146,7 @@ def test_install_keeps_foreign_settings_and_replaces_its_own_entries() -> None:
     argv = (
         "py",
         "-m",
-        "agent_actions",
+        "agent_controls",
         "run",
         "checks.py",
         "--harness",
@@ -168,7 +168,7 @@ def test_install_keeps_foreign_settings_and_replaces_its_own_entries() -> None:
                         {
                             "type": "command",
                             "timeout": 60,
-                            "command": "py -m agent_actions run checks.py --harness claude --hook pre-tool",
+                            "command": "py -m agent_controls run checks.py --harness claude --hook pre-tool",
                         }
                     ],
                 },
@@ -179,7 +179,7 @@ def test_install_keeps_foreign_settings_and_replaces_its_own_entries() -> None:
 
 def test_install_keeps_entries_of_another_runner_file() -> None:
     other = {
-        "hooks": [{"type": "command", "command": "py -m agent_actions run other.py --hook stop"}]
+        "hooks": [{"type": "command", "command": "py -m agent_controls run other.py --hook stop"}]
     }
     existing = {"hooks": {"Stop": [other]}}
 

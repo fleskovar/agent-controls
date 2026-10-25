@@ -14,7 +14,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# agent_actions session records
+# agent_controls session records
 /.hooks/
 .vscode
 CLAUDE.md

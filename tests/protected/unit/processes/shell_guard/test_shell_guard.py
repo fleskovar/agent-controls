@@ -1,8 +1,8 @@
 from builders import a_tool_event
 
-from agent_actions.model import ToolKind, Verdict, allow, block
-from agent_actions.processes import BlockShellCommands
-from agent_actions.processes.shell import SHELL_REASON
+from agent_controls.model import ToolKind, Verdict, allow, block
+from agent_controls.processes import BlockShellCommands
+from agent_controls.processes.shell import SHELL_REASON
 
 
 def test_matching_command_is_blocked_with_the_pattern() -> None:

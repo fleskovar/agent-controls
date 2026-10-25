@@ -1,4 +1,4 @@
-"""The hcm bundle of the package, and the `agent_actions hcm` commands.
+"""The hcm bundle of the package, and the `agent_controls hcm` commands.
 
 The tests that run hcm use a temporary HCM_HOME and the project scope only. Thus
 they change neither the hcm registry nor the home folders of the user.
@@ -16,19 +16,19 @@ from typing import Any
 
 import pytest
 
-from agent_actions import processes
-from agent_actions.cli import main
-from agent_actions.harnesses import make_adapter
-from agent_actions.hcm import BUNDLE_DIR, BUNDLE_NAME, HCM_INSTALL_COMMAND
-from agent_actions.model import Harness, Hook
-from agent_actions.process import Process
-from agent_actions.runtime import load_runner
+from agent_controls import processes
+from agent_controls.cli import main
+from agent_controls.harnesses import make_adapter
+from agent_controls.hcm import BUNDLE_DIR, BUNDLE_NAME, HCM_INSTALL_COMMAND
+from agent_controls.model import Harness, Hook
+from agent_controls.process import Process
+from agent_controls.runtime import load_runner
 
 REPO = next(
     folder for folder in Path(__file__).resolve().parents if (folder / "pyproject.toml").is_file()
 )
 SKILLS = BUNDLE_DIR / "skills"
-ASSETS = SKILLS / "agent-actions-guardrails" / "assets"
+ASSETS = SKILLS / "agent-controls-guardrails" / "assets"
 TEMPLATES = sorted(ASSETS.glob("*_checks.py"))
 EMPTY_TABLE = "PROTECTED: dict[str, list[str]] = {"
 HCM = shutil.which("hcm") or "hcm"
@@ -50,7 +50,7 @@ def test_the_bundle_has_the_version_of_the_package() -> None:
 
 
 def test_the_reference_describes_each_included_process() -> None:
-    reference = (SKILLS / "agent-actions-processes" / "reference.md").read_text(encoding="utf-8")
+    reference = (SKILLS / "agent-controls-processes" / "reference.md").read_text(encoding="utf-8")
     included = [
         name
         for name in processes.__all__
@@ -142,7 +142,7 @@ def test_a_failing_command_wins_and_an_old_report_does_not_pass(
     assert coverage_floor(["80"]) == 2
 
 
-# --- agent_actions hcm ---------------------------------------------------------------
+# --- agent_controls hcm ---------------------------------------------------------------
 
 
 @pytest.fixture
@@ -188,9 +188,9 @@ def test_init_registers_the_bundle_and_update_keeps_its_entry(project: Path) -> 
 
     assert (first["version"], first.get("dev", False)) == (package_version(), False)
     assert registry_entry()["id"] == first["id"]
-    assert (project / ".claude/skills/agent-actions-setup/SKILL.md").is_file()
-    assert (project / ".claude/skills/agent-actions-guardrails/assets/coverage_floor.py").is_file()
-    assert "## Agent Actions" in (project / "CLAUDE.md").read_text(encoding="utf-8")
+    assert (project / ".claude/skills/agent-controls-setup/SKILL.md").is_file()
+    assert (project / ".claude/skills/agent-controls-guardrails/assets/coverage_floor.py").is_file()
+    assert "## Agent Controls" in (project / "CLAUDE.md").read_text(encoding="utf-8")
 
 
 @needs_hcm
@@ -204,7 +204,7 @@ def test_update_installs_the_edits_of_a_development_bundle(
 
     assert main(["hcm", "init", "--dev", str(working_copy)]) == 0
     hcm("install", BUNDLE_NAME, *INSTALL_OPTIONS)
-    page = Path("skills/agent-actions-setup/harnesses.md")
+    page = Path("skills/agent-controls-setup/harnesses.md")
     with (working_copy / page).open("a", encoding="utf-8") as file:
         file.write("\nAn edit of the working copy.\n")
     assert main(["hcm", "update", *INSTALL_OPTIONS]) == 0

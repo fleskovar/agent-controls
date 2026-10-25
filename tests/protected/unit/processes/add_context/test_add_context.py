@@ -1,7 +1,7 @@
 from builders import an_event
 
-from agent_actions.model import Hook, allow
-from agent_actions.processes import AddContext
+from agent_controls.model import Hook, allow
+from agent_controls.processes import AddContext
 
 
 def test_text_is_added_as_context() -> None:

@@ -1,5 +1,5 @@
-import agent_actions as aa
-from agent_actions.processes import CommandOutcome, RequireTests
+import agent_controls as aa
+from agent_controls.processes import CommandOutcome, RequireTests
 
 
 def failing_pytest(command, cwd, timeout, stdin):

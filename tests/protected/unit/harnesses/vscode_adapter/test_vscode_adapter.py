@@ -1,5 +1,5 @@
-from agent_actions.harnesses.vscode import VSCodeAdapter
-from agent_actions.model import Hook, ToolKind, allow, block
+from agent_controls.harnesses.vscode import VSCodeAdapter
+from agent_controls.model import Hook, ToolKind, allow, block
 
 ADAPTER = VSCodeAdapter()
 
@@ -61,7 +61,7 @@ def test_install_writes_command_and_windows_variants() -> None:
     argv = (
         "C:/Program Files/py.exe",
         "-m",
-        "agent_actions",
+        "agent_controls",
         "run",
         "checks.py",
         "--harness",
@@ -77,8 +77,8 @@ def test_install_writes_command_and_windows_variants() -> None:
             "Stop": [
                 {
                     "type": "command",
-                    "command": "'C:/Program Files/py.exe' -m agent_actions run checks.py --harness vscode --hook stop",
-                    "windows": "& 'C:/Program Files/py.exe' '-m' 'agent_actions' 'run' 'checks.py' '--harness' 'vscode' '--hook' 'stop'",
+                    "command": "'C:/Program Files/py.exe' -m agent_controls run checks.py --harness vscode --hook stop",
+                    "windows": "& 'C:/Program Files/py.exe' '-m' 'agent_controls' 'run' 'checks.py' '--harness' 'vscode' '--hook' 'stop'",
                     "timeout": 30,
                 }
             ]

@@ -8,13 +8,13 @@ import git
 import pytest
 from builders import an_event
 
-from agent_actions.app import install_hooks, run_hook
-from agent_actions.engine import execute
-from agent_actions.errors import StateError
-from agent_actions.harnesses import make_adapter
-from agent_actions.model import Harness, Hook, HookInput, ProcessResult, Verdict, allow, block
-from agent_actions.process import StopProcess
-from agent_actions.processes import (
+from agent_controls.app import install_hooks, run_hook
+from agent_controls.engine import execute
+from agent_controls.errors import StateError
+from agent_controls.harnesses import make_adapter
+from agent_controls.model import Harness, Hook, HookInput, ProcessResult, Verdict, allow, block
+from agent_controls.process import StopProcess
+from agent_controls.processes import (
     CommandOutcome,
     SetFlag,
     changed_paths,
@@ -22,9 +22,9 @@ from agent_actions.processes import (
     git_snapshot,
     on_changed_paths,
 )
-from agent_actions.processes.commands import Command
-from agent_actions.runtime import Context
-from agent_actions.session import FlagFile
+from agent_controls.processes.commands import Command
+from agent_controls.runtime import Context
+from agent_controls.session import FlagFile
 
 CLAUDE = make_adapter(Harness.CLAUDE)
 STOP = an_event(Hook.STOP)
@@ -305,8 +305,8 @@ def test_pass_deletes_the_flag_and_a_failure_keeps_it(tmp_path: Path) -> None:
 # --- end to end: a flag from one session starts a guardrail in the next ---------------
 
 RUNNER = """\
-import agent_actions as aa
-from agent_actions.processes import CommandOutcome, RequireCommand, SetFlag, clear_on_pass
+import agent_controls as aa
+from agent_controls.processes import CommandOutcome, RequireCommand, SetFlag, clear_on_pass
 
 context = aa.get_current_context()
 flags, session = context.flags, context.session_flags
@@ -368,7 +368,7 @@ def test_flag_from_one_session_starts_the_guardrail_in_the_next_session(tmp_path
     # The log tells why a guardrail ran or did not run.
     [log_two] = tmp_path.glob(".hooks/*_two/main-agent/log.txt")
     [log_three] = tmp_path.glob(".hooks/*_three/main-agent/log.txt")
-    assert "[agent_actions] changed project flags: tests-due" in log_two.read_text("utf-8")
+    assert "[agent_controls] changed project flags: tests-due" in log_two.read_text("utf-8")
     assert "[tests] skipped: its `when` condition is false" in log_three.read_text("utf-8")
 
 
@@ -382,8 +382,8 @@ def test_install_registers_the_hook_of_a_process_that_has_a_condition(tmp_path: 
 
 def test_flag_that_is_not_json_fails_the_hook_call_loudly(tmp_path: Path) -> None:
     (tmp_path / "checks.py").write_text(
-        "import agent_actions as aa\n"
-        "from agent_actions.processes import SetFlag\n"
+        "import agent_controls as aa\n"
+        "from agent_controls.processes import SetFlag\n"
         "context = aa.get_current_context()\n"
         "context.add(SetFlag(context.flags, 'bad', {1, 2}, on=[aa.Hook.STOP]))\n"
         "aa.run(context)\n",

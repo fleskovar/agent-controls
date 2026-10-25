@@ -14,8 +14,8 @@ The comparison reads git. Thus it also finds a change that a shell command made.
 
 import sys
 
-import agent_actions as aa
-from agent_actions.processes import (
+import agent_controls as aa
+from agent_controls.processes import (
     Limit,
     RequireCommand,
     RequireTests,

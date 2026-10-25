@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from agent_actions.app import install_hooks, parse_payload, run_hook
-from agent_actions.errors import PayloadError, RunnerFileError
-from agent_actions.model import Harness, Hook
+from agent_controls.app import install_hooks, parse_payload, run_hook
+from agent_controls.errors import PayloadError, RunnerFileError
+from agent_controls.model import Harness, Hook
 
 
 def test_invalid_payload_fails_without_creating_session_files(tmp_path: Path) -> None:
@@ -18,7 +18,7 @@ def test_invalid_payload_fails_without_creating_session_files(tmp_path: Path) ->
 def test_hook_that_the_harness_lacks_is_reported(tmp_path: Path) -> None:
     response = run_hook(tmp_path, Path("checks.py"), Harness.COPILOT_CLI, Hook.SUBAGENT_START, "{}")
 
-    assert response.stderr == "agent_actions: Harness 'copilot-cli' has no 'subagent-start' hook."
+    assert response.stderr == "agent_controls: Harness 'copilot-cli' has no 'subagent-start' hook."
 
 
 def test_payload_must_be_a_json_object() -> None:
@@ -42,7 +42,7 @@ def test_missing_runner_file_is_recorded_as_a_failed_step(tmp_path: Path) -> Non
 
 def test_install_of_a_runner_file_without_processes_is_an_error(tmp_path: Path) -> None:
     (tmp_path / "checks.py").write_text(
-        "import agent_actions as aa\naa.run(aa.get_current_context())\n", encoding="utf-8"
+        "import agent_controls as aa\naa.run(aa.get_current_context())\n", encoding="utf-8"
     )
 
     with pytest.raises(RunnerFileError, match="adds no processes"):

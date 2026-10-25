@@ -22,7 +22,7 @@ pip install git+https://github.com/fleskovar/agent_actions
 Check the command:
 
 ```bash
-agent_actions --help
+agent_controls --help
 ```
 
 ## Step 2: Write the runner file
@@ -30,8 +30,8 @@ agent_actions --help
 Create `agent_checks.py` in the project root:
 
 ```python
-import agent_actions as aa
-from agent_actions.processes import BlockReads, BlockWrites, Limit, RequireTests
+import agent_controls as aa
+from agent_controls.processes import BlockReads, BlockWrites, Limit, RequireTests
 
 context = aa.get_current_context()
 
@@ -56,7 +56,7 @@ Three rules for this file:
 ## Step 3: Install the hooks
 
 ```bash
-agent_actions install agent_checks.py --target claude
+agent_controls install agent_checks.py --target claude
 ```
 
 Output:
@@ -90,7 +90,7 @@ A good agent then fixes the code instead, which is the point of the reason text.
 ## Step 5: Read the session record
 
 ```bash
-agent_actions sessions
+agent_controls sessions
 ```
 
 ```text
@@ -109,7 +109,7 @@ Copy one `stdin` object from `io.json` into `payload.json`, and replay the call
 with no agent:
 
 ```bash
-agent_actions run agent_checks.py --harness claude --hook pre-tool --input payload.json
+agent_controls run agent_checks.py --harness claude --hook pre-tool --input payload.json
 ```
 
 This is the fastest way to debug a guardrail, and it is how you build a test case
@@ -126,7 +126,7 @@ more than twice:
 
 ```python
 # no_todo.py
-import agent_actions as aa
+import agent_controls as aa
 
 
 class NoTodoInFinalAnswer(aa.StopProcess):
@@ -175,7 +175,7 @@ Four rules to follow:
 
 ```python
 # tests/test_no_todo.py
-from agent_actions.model import Harness, Hook, HookInput, Verdict
+from agent_controls.model import Harness, Hook, HookInput, Verdict
 from no_todo import NoTodoInFinalAnswer
 
 
@@ -221,7 +221,7 @@ silence.
 
 - [Included processes](processes.md), with every parameter.
 - [Architecture](architecture.md), for the reason behind each design decision.
-- `python -m agent_actions hcm init`, then `hcm install agent-actions -t claude-code`,
-  installs the skills that teach an AI agent to set up Agent Actions, to configure
+- `python -m agent_controls hcm init`, then `hcm install agent-controls -t claude-code`,
+  installs the skills that teach an AI agent to set up Agent Controls, to configure
   checks for a project of any language, and to write processes. The
   [README](../README.md#agent-skills) has the details.

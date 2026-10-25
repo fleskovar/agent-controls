@@ -1,6 +1,6 @@
 # Architecture and design
 
-This document explains the structure of Agent Actions, the reason for each main
+This document explains the structure of Agent Controls, the reason for each main
 decision, and the places where you extend it. The requirements are in
 [requirements.md](requirements.md). The per-harness field tables are in
 [data-model.md](data-model.md).
@@ -18,7 +18,7 @@ hard to do by hand:
 3. **A hook process has no memory.** Each call is a new process, so "how many
    times did the agent try this?" is not answerable without files.
 
-Agent Actions answers the three with: adapters, capability checks, and a session
+Agent Controls answers the three with: adapters, capability checks, and a session
 store. The store also holds flags, which are the memory between sessions.
 
 ## 2. Layers
@@ -124,7 +124,7 @@ hook produces output the harness ignores, with no error. Three checks prevent it
    a process that returns a verdict it never declared. The run fails with exit
    code 1 and a message on stderr.
 
-The first two fail during `agent_actions install`, which is where a mistake is
+The first two fail during `agent_controls install`, which is where a mistake is
 cheap. The case `stop-process-that-asks-fails-loudly` pins the third.
 
 ### 4.3 An allow is not an approval
@@ -162,8 +162,8 @@ the simple form, and OS locks are the upgrade path.
 
 ### 4.7 The runner file is data, not a library
 
-`agent_actions run` executes the runner file with `runpy`, and the file hands its
-context back through `agent_actions.run(context)`. The same file serves two
+`agent_controls run` executes the runner file with `runpy`, and the file hands its
+context back through `agent_controls.run(context)`. The same file serves two
 commands: with a hook it runs the active processes; with no hook, `install` reads
 which hooks it needs. This keeps one list of processes, so the configuration
 cannot drift from the code.
@@ -208,8 +208,8 @@ snapshot, and it does not report the uncommitted work from before it.
 
 | To add | Do this |
 | --- | --- |
-| A guardrail for one project | Write a process in the project, add it to the runner file. See the `agent-actions-processes` skill. |
-| A guardrail for everyone | Add a module under `src/agent_actions/processes/`, export it in `__init__.py`, document it in [processes.md](processes.md). |
+| A guardrail for one project | Write a process in the project, add it to the runner file. See the `agent-controls-processes` skill. |
+| A guardrail for everyone | Add a module under `src/agent_controls/processes/`, export it in `__init__.py`, document it in [processes.md](processes.md). |
 | A harness | Add an adapter module and one entry in `_ADAPTERS`. See [adding-a-harness.md](adding-a-harness.md). |
 | A lifecycle hook | Add a member to `Hook`, then map it in each adapter that has it. |
 

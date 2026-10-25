@@ -2,7 +2,7 @@
 
 The framework reads `.hooks/flags.json` at each hook call. Thus a person can edit
 that file to change the behaviour of the agents. The next hook call uses the new
-value, in each open session, and `agent_actions install` is not necessary.
+value, in each open session, and `agent_controls install` is not necessary.
 
     {
       "freeze": "Release 2.4 is in review until Friday.",
@@ -21,8 +21,8 @@ the write tools on the flag files, and each shell command that mentions `flags.j
 Copilot CLI has no context channel on session-start. Remove the note there.
 """
 
-import agent_actions as aa
-from agent_actions.processes import AddContext, BlockWrites
+import agent_controls as aa
+from agent_controls.processes import AddContext, BlockWrites
 
 context = aa.get_current_context()
 flags = context.flags

@@ -1,5 +1,5 @@
 {
   "exit_code": 1,
   "stdout": null,
-  "stderr": "agent_actions: Process 'AskBeforeStopping' returned 'ask' on 'stop' for harness 'claude', but only allow, block can reach the agent there."
+  "stderr": "agent_controls: Process 'AskBeforeStopping' returned 'ask' on 'stop' for harness 'claude', but only allow, block can reach the agent there."
 }

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from agent_actions.model import Harness, Hook, HookInput, ToolCall, ToolKind
+from agent_controls.model import Harness, Hook, HookInput, ToolCall, ToolKind
 
 ROOT = "/repo"
 

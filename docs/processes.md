@@ -1,6 +1,6 @@
 # Included processes
 
-Import them from `agent_actions.processes`. Every process works in every
+Import them from `agent_controls.processes`. Every process works in every
 supported harness, unless the table says otherwise. Patterns are relative to the
 project root, match case-insensitively, and `*` also matches `/`. A pattern
 without a wildcard also covers everything inside the folder it names, and
@@ -499,8 +499,8 @@ and `RunCommand`.
 ### Example: checks that follow the changes
 
 ```python
-import agent_actions as aa
-from agent_actions.processes import (
+import agent_controls as aa
+from agent_controls.processes import (
     Limit, RequireCommand, RequireTests, SetFlag,
     changed_paths, clear_on_pass, git_snapshot, on_changed_paths,
 )
@@ -580,8 +580,8 @@ the same for the three processes:
 A C# project with a test run at each point of the agent lifecycle:
 
 ```python
-import agent_actions as aa
-from agent_actions.processes import CheckAfterEdit, Limit, RequireCommand, RunCommand
+import agent_controls as aa
+from agent_controls.processes import CheckAfterEdit, Limit, RequireCommand, RunCommand
 
 TESTS = "dotnet test --nologo"
 

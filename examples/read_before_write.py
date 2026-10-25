@@ -11,9 +11,9 @@ Change GUIDE and GUARDED to use the idea for other rules, for example "read the
 migration guide before you change `migrations/`".
 """
 
-import agent_actions as aa
-from agent_actions.processes import BlockWrites, SetFlag
-from agent_actions.processes.paths import matching_pattern, relative_path
+import agent_controls as aa
+from agent_controls.processes import BlockWrites, SetFlag
+from agent_controls.processes.paths import matching_pattern, relative_path
 
 GUIDE = "docs/architecture.md"
 GUARDED = ["src/**"]

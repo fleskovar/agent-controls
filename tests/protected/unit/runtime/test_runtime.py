@@ -2,12 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from agent_actions.errors import IncompatibleProcessError, RunnerFileError
-from agent_actions.harnesses import make_adapter
-from agent_actions.model import Harness, Hook, HookInput, ProcessResult, allow, ask
-from agent_actions.process import PreToolProcess, PromptProcess, StartProcess, StopProcess
-from agent_actions.processes import AddContext
-from agent_actions.runtime import Context, get_current_context, load_runner, log
+from agent_controls.errors import IncompatibleProcessError, RunnerFileError
+from agent_controls.harnesses import make_adapter
+from agent_controls.model import Harness, Hook, HookInput, ProcessResult, allow, ask
+from agent_controls.process import PreToolProcess, PromptProcess, StartProcess, StopProcess
+from agent_controls.processes import AddContext
+from agent_controls.runtime import Context, get_current_context, load_runner, log
 
 
 class StopCheck(StopProcess):
@@ -84,7 +84,7 @@ def test_hooks_are_listed_in_lifecycle_order() -> None:
 
 
 def test_context_outside_a_hook_call_explains_how_to_start() -> None:
-    with pytest.raises(RunnerFileError, match="agent_actions run"):
+    with pytest.raises(RunnerFileError, match="agent_controls run"):
         get_current_context()
 
 
@@ -96,9 +96,9 @@ def test_log_outside_a_run_goes_to_stderr(capsys: pytest.CaptureFixture[str]) ->
 
 def test_runner_file_that_does_not_call_run_is_an_error(tmp_path: Path) -> None:
     runner = tmp_path / "checks.py"
-    runner.write_text("import agent_actions as aa\naa.get_current_context()\n")
+    runner.write_text("import agent_controls as aa\naa.get_current_context()\n")
 
-    with pytest.raises(RunnerFileError, match=r"did not call agent_actions\.run\(context\)"):
+    with pytest.raises(RunnerFileError, match=r"did not call agent_controls\.run\(context\)"):
         load_runner(runner, make_adapter(Harness.CLAUDE), Hook.STOP, None)
 
 
@@ -117,14 +117,14 @@ def test_missing_runner_file_is_an_error(tmp_path: Path) -> None:
 
 def test_runner_file_imports_modules_next_to_it(tmp_path: Path) -> None:
     (tmp_path / "local_rules_module.py").write_text(
-        "from agent_actions import StopProcess, allow\n\n"
+        "from agent_controls import StopProcess, allow\n\n"
         "class LocalCheck(StopProcess):\n"
         "    def run(self, event):\n"
         "        return allow()\n"
     )
     runner = tmp_path / "checks.py"
     runner.write_text(
-        "import agent_actions as aa\n"
+        "import agent_controls as aa\n"
         "from local_rules_module import LocalCheck\n"
         "context = aa.get_current_context()\n"
         "context.add(LocalCheck())\n"

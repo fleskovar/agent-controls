@@ -8,10 +8,10 @@ from typing import Any
 import pytest
 from builders import an_event
 
-from agent_actions.app import install_hooks, run_hook
-from agent_actions.harnesses import make_adapter
-from agent_actions.model import Harness, Hook, Verdict
-from agent_actions.processes import (
+from agent_controls.app import install_hooks, run_hook
+from agent_controls.harnesses import make_adapter
+from agent_controls.model import Harness, Hook, Verdict
+from agent_controls.processes import (
     CommandOutcome,
     DotnetCoverage,
     PytestCoverage,
@@ -19,8 +19,8 @@ from agent_actions.processes import (
     TypeScriptCoverage,
     report_coverage,
 )
-from agent_actions.processes.commands import Command
-from agent_actions.runtime import compatibility_problems
+from agent_controls.processes.commands import Command
+from agent_controls.runtime import compatibility_problems
 
 START = an_event(Hook.SESSION_START)
 STOP = an_event(Hook.STOP)
@@ -136,8 +136,8 @@ def test_gate_and_baseline_work_in_each_harness(harness: Harness) -> None:
 
 RUNNER = f"""
 import sys
-import agent_actions as aa
-from agent_actions.processes import RequireCoverage
+import agent_controls as aa
+from agent_controls.processes import RequireCoverage
 
 context = aa.get_current_context()
 gate = RequireCoverage([{sys.executable!r}, "-c", "print(open('cov.txt').read() + '%')"],

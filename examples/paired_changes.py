@@ -16,8 +16,8 @@ paired change. The agent then reports that to the user.
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-import agent_actions as aa
-from agent_actions.processes import Limit, SetFlag, changed_paths, git_snapshot
+import agent_controls as aa
+from agent_controls.processes import Limit, SetFlag, changed_paths, git_snapshot
 
 
 class RequirePairedChange(aa.StopProcess):

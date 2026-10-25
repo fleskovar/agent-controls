@@ -1,5 +1,5 @@
 {
   "exit_code": 1,
   "stdout": null,
-  "stderr": "agent_actions: Cannot add process 'AddContext' for harness 'copilot-cli': 'session-start' has no channel for context."
+  "stderr": "agent_controls: Cannot add process 'AddContext' for harness 'copilot-cli': 'session-start' has no channel for context."
 }

@@ -4,9 +4,9 @@ from pathlib import Path
 import pytest
 from builders import an_event
 
-from agent_actions.engine import ProcessRecord
-from agent_actions.model import Hook
-from agent_actions.session import (
+from agent_controls.engine import ProcessRecord
+from agent_controls.model import Hook
+from agent_controls.session import (
     SessionStore,
     format_timestamp,
     free_name,
@@ -14,7 +14,7 @@ from agent_actions.session import (
     short_id,
     slug,
 )
-from agent_actions.storage import read_json
+from agent_controls.storage import read_json
 
 MOMENT = datetime(2026, 9, 15, 23, 24, 55, 123456, tzinfo=UTC)
 

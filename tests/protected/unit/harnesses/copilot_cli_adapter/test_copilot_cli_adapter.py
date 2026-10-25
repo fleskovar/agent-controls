@@ -3,8 +3,8 @@ from typing import Any
 
 import pytest
 
-from agent_actions.harnesses.copilot_cli import CopilotCliAdapter
-from agent_actions.model import Hook, ProcessResult, ToolKind, allow, ask, block
+from agent_controls.harnesses.copilot_cli import CopilotCliAdapter
+from agent_controls.model import Hook, ProcessResult, ToolKind, allow, ask, block
 
 ADAPTER = CopilotCliAdapter()
 
@@ -102,7 +102,7 @@ def test_install_writes_a_versioned_file_with_bash_and_powershell() -> None:
     argv = (
         "py",
         "-m",
-        "agent_actions",
+        "agent_controls",
         "run",
         "checks.py",
         "--harness",
@@ -113,7 +113,7 @@ def test_install_writes_a_versioned_file_with_bash_and_powershell() -> None:
 
     merged = ADAPTER.merge_config({}, {Hook.STOP: argv}, "checks.py", 45)
 
-    command = "py -m agent_actions run checks.py --harness copilot-cli --hook stop"
+    command = "py -m agent_controls run checks.py --harness copilot-cli --hook stop"
     assert merged == {
         "version": 1,
         "hooks": {

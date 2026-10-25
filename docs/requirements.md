@@ -1,4 +1,4 @@
-# Agent Actions: refined requirements
+# Agent Controls: refined requirements
 
 Status: baseline, 2026-09-15. Source: [task.md](../task.md).
 
@@ -8,7 +8,7 @@ refinement and the reason for it.
 
 ## 1. Purpose
 
-Agent Actions is a Python SDK and a CLI. With it, a project writes Python code
+Agent Controls is a Python SDK and a CLI. With it, a project writes Python code
 that runs when an AI agent harness fires a lifecycle hook. The framework gives
 that code:
 
@@ -24,7 +24,7 @@ that code:
 | Harness | The program that runs the agent and fires hooks: Claude Code, VS Code (GitHub Copilot agent), GitHub Copilot CLI. |
 | Hook | A neutral lifecycle point, for example `pre-tool` or `stop`. Each harness has its own name for it. |
 | Process | A Python class that runs on one or more hooks and returns a `ProcessResult`. |
-| Runner file | A Python file that creates processes, adds them to the context and calls `agent_actions.run(context)`. |
+| Runner file | A Python file that creates processes, adds them to the context and calls `agent_controls.run(context)`. |
 | Session | One agent conversation. The harness gives it an id. |
 | Agent folder | The folder that holds the files of the main agent or of one subagent in a session. |
 | Verdict | The decision of a process: `allow`, `block` or `ask`. |
@@ -139,28 +139,28 @@ that code:
   uses them to find the folder of a known session or agent.
 - **R27.** `io.json` records, per timestamp: harness, hook, raw stdin payload,
   stdout payload and exit code.
-- **R28.** `agent_actions.log(message)` appends a line to `log.txt` of the
+- **R28.** `agent_controls.log(message)` appends a line to `log.txt` of the
   current agent folder. The line contains the timestamp and the process name.
 - **R29.** The framework holds a lock file on the agent folder while it loads,
   runs and records a step. Parallel hook calls for one agent do not lose state.
 
 ### 3.7 CLI
 
-- **R30.** `agent_actions run RUNNER --harness H --hook K [--input FILE]` reads
+- **R30.** `agent_controls run RUNNER --harness H --hook K [--input FILE]` reads
   the hook payload from stdin (or FILE), executes the runner file, writes the
   harness response to stdout and exits with the harness exit code.
-- **R31.** `agent_actions install RUNNER [--target H] [--timeout S]` finds the
+- **R31.** `agent_controls install RUNNER [--target H] [--timeout S]` finds the
   hooks that the runner file uses and writes or merges the configuration file
   of the harness. Entries from other tools stay unchanged. The command in the
   configuration uses the absolute path of the Python interpreter that runs
   `install`, so a virtual environment works.
 - **R32.** When `--target` is missing and stdin is a terminal, `install` asks
   the user to select the harness. When stdin is not a terminal, `install` fails.
-- **R33.** `agent_actions sessions` lists the recorded sessions, newest first.
-- **R34.** `agent_actions skills [--dest DIR]` copies the agent skills of the
+- **R33.** `agent_controls sessions` lists the recorded sessions, newest first.
+- **R34.** `agent_controls skills [--dest DIR]` copies the agent skills of the
   package into a project.
-- **R47.** `agent_actions hcm init` registers the agent bundle of the package in
-  the hcm registry. `agent_actions hcm update` registers the bundle of the
+- **R47.** `agent_controls hcm init` registers the agent bundle of the package in
+  the hcm registry. `agent_controls hcm update` registers the bundle of the
   installed package version, then updates it in the current project. Both run
   the `hcm` command, and both fail with its install command when it is missing.
 
